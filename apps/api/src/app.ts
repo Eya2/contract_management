@@ -7,6 +7,7 @@ import { env } from './config/env.js';
 import { requestContextMiddleware } from './common/context/request-context.js';
 import { errorHandler, notFoundHandler } from './common/middleware/error-handler.js';
 import { logger } from './lib/logger.js';
+import { jobsRouter } from './modules/admin/jobs.routes.js';
 import { auditRouter, contractAuditRouter } from './modules/audit/audit.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { contractsRouter } from './modules/contracts/contracts.routes.js';
@@ -15,6 +16,7 @@ import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { departmentsRouter } from './modules/departments/departments.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { notificationsRouter } from './modules/notifications/notifications.routes.js';
+import { contractRenewalRouter } from './modules/renewals/renewals.routes.js';
 import { contractSigningRouter, publicSigningRouter, signersRouter } from './modules/signing/signing.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import {
@@ -52,12 +54,13 @@ export function createApp() {
   app.use('/api/users', usersRouter);
   app.use('/api/departments', departmentsRouter);
   app.use('/api/counterparties', counterpartiesRouter);
-  app.use('/api/contracts', contractsRouter, contractWorkflowRouter, contractSigningRouter, contractAuditRouter);
+  app.use('/api/contracts', contractsRouter, contractWorkflowRouter, contractSigningRouter, contractAuditRouter, contractRenewalRouter);
   app.use('/api/approvals', approvalsRouter);
   app.use('/api/workflow-templates', workflowTemplatesRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/audit', auditRouter);
+  app.use('/api/admin/emails', jobsRouter);
   app.use('/api/signers', signersRouter);
   app.use('/api/signing', publicSigningRouter);
 

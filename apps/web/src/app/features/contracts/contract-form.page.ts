@@ -36,7 +36,7 @@ function slug(text: string, taken: Set<string>): string {
 @Component({
   imports: [FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatProgressSpinnerModule],
   template: `
-    <a [routerLink]="id() ? ['/contracts', id()] : '/contracts'" class="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-ink">
+    <a [routerLink]="id() ? ['/contracts', id()] : '/contracts'" class="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
       <span class="material-symbols-outlined !text-[18px]">arrow_back</span>Back
     </a>
     <h1 class="mb-6 text-2xl font-bold text-ink">{{ id() ? 'Edit contract' : 'New contract' }}</h1>
@@ -46,7 +46,7 @@ function slug(text: string, taken: Set<string>): string {
     } @else {
       <form class="grid gap-6 lg:grid-cols-3" (ngSubmit)="save()">
         <div class="space-y-6 lg:col-span-2">
-          <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <section class="card p-5">
             <h2 class="mb-4 font-semibold text-ink">Details</h2>
             <mat-form-field class="w-full">
               <mat-label>Title</mat-label>
@@ -74,7 +74,7 @@ function slug(text: string, taken: Set<string>): string {
               </mat-form-field>
             </div>
             @if (addingCounterparty()) {
-              <div class="mb-4 flex flex-wrap items-start gap-3 rounded-lg bg-slate-50 p-3">
+              <div class="mb-4 flex flex-wrap items-start gap-3 rounded-lg bg-subtle p-3">
                 <mat-form-field subscriptSizing="dynamic" class="flex-1">
                   <mat-label>New counterparty name</mat-label>
                   <input matInput name="newCp" [(ngModel)]="newCounterparty" />
@@ -107,15 +107,15 @@ function slug(text: string, taken: Set<string>): string {
             </div>
           </section>
 
-          <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <section class="card p-5">
             <div class="mb-4 flex items-center justify-between">
               <h2 class="font-semibold text-ink">Clauses</h2>
               <button mat-stroked-button type="button" (click)="addClause()"><mat-icon>add</mat-icon>Add clause</button>
             </div>
             @for (c of clauses(); track c.uid; let i = $index, first = $first, last = $last) {
-              <div class="mb-4 rounded-lg border border-slate-200 p-4">
+              <div class="mb-4 rounded-lg border border-line p-4">
                 <div class="flex items-start gap-2">
-                  <span class="mt-4 w-6 shrink-0 text-sm font-semibold text-slate-400">{{ i + 1 }}.</span>
+                  <span class="mt-4 w-6 shrink-0 text-sm font-semibold text-faint">{{ i + 1 }}.</span>
                   <mat-form-field class="flex-1" subscriptSizing="dynamic">
                     <mat-label>Heading</mat-label>
                     <input matInput [name]="'h' + c.uid" [(ngModel)]="c.heading" required />
@@ -130,22 +130,22 @@ function slug(text: string, taken: Set<string>): string {
                 </mat-form-field>
               </div>
             } @empty {
-              <p class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">No clauses. Add clauses, or upload the contract document instead.</p>
+              <p class="rounded-xl bg-subtle p-4 text-sm text-muted">No clauses. Add clauses, or upload the contract document instead.</p>
             }
           </section>
         </div>
 
         <aside class="space-y-6">
-          <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <section class="card p-5">
             <h2 class="mb-3 font-semibold text-ink">Document</h2>
             @if (currentFile() && !removeDocument() && !file()) {
-              <div class="mb-3 flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-sm">
+              <div class="mb-3 flex items-center gap-2 rounded-lg bg-subtle p-3 text-sm">
                 <mat-icon class="text-rose-600">picture_as_pdf</mat-icon>
                 <span class="min-w-0 flex-1 truncate">{{ currentFile()!.originalName }}</span>
                 <button mat-icon-button type="button" (click)="removeDocument.set(true)" aria-label="Remove document"><mat-icon>close</mat-icon></button>
               </div>
             }
-            <label class="flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 hover:border-brand-400 hover:bg-brand-50/40">
+            <label class="flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed border-line p-6 text-center text-sm text-muted hover:border-[var(--accent)] hover:bg-accent-soft">
               <mat-icon>upload_file</mat-icon>
               @if (file(); as f) {
                 <span class="font-medium text-ink">{{ f.name }}</span><span>{{ fileSize(f.size) }}</span>
@@ -157,18 +157,18 @@ function slug(text: string, taken: Set<string>): string {
           </section>
 
           @if (id()) {
-            <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <section class="card p-5">
               <h2 class="mb-3 font-semibold text-ink">What changed?</h2>
               <mat-form-field class="w-full" subscriptSizing="dynamic">
                 <mat-label>Change summary (shown in the history)</mat-label>
                 <textarea matInput name="summary" rows="2" [(ngModel)]="changeSummary" maxlength="500"></textarea>
               </mat-form-field>
-              <p class="mt-3 text-xs text-slate-500">Saving creates version {{ (expectedVersion() ?? 0) + 1 }}. Earlier versions stay in the history.</p>
+              <p class="mt-3 text-xs text-muted">Saving creates version {{ (expectedVersion() ?? 0) + 1 }}. Earlier versions stay in the history.</p>
             </section>
           }
 
           @if (error()) {
-            <p class="rounded-lg bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ error() }}</p>
+            <p class="callout tone-danger" role="alert">{{ error() }}</p>
           }
           <button mat-flat-button type="submit" class="w-full" [disabled]="saving() || !valid()">
             {{ saving() ? 'Saving…' : id() ? 'Save new version' : 'Create draft' }}

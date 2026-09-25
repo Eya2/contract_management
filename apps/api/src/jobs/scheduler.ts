@@ -1,5 +1,6 @@
 import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
+import { renewalService } from '../modules/renewals/renewal.service.js';
 import { signingService } from '../modules/signing/signing.service.js';
 import { escalationService } from '../modules/workflow/escalation.service.js';
 import { jobQueue } from './job-queue.js';
@@ -22,6 +23,10 @@ export function startScheduler(): () => void {
     every(env.ESCALATION_SCAN_INTERVAL_MS, 'Contract activation', async () => {
       const { activated } = await signingService.activateDueContracts();
       if (activated > 0) logger.info({ activated }, 'Activated signed contracts on their start date');
+    }),
+    every(env.ESCALATION_SCAN_INTERVAL_MS, 'Renewals', async () => {
+      const r = await renewalService.runOnce();
+      if (r.reminded || r.expired || r.renewed || r.autoRenewed) logger.info(r, 'Processed contract terms');
     }),
   ];
   return () => timers.forEach((t) => t && clearInterval(t));

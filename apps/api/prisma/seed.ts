@@ -227,7 +227,57 @@ async function seedDemoContracts(counterparties: Map<string, string>, ndaTemplat
     },
   ];
 
+  // Two contracts already in force and ending soon, to show reminders and
+  // renewals. Dates are relative to today so the demo never goes stale.
+  const isoIn = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  const inForce = [
+    {
+      owner: 'sales@contracthub.dev',
+      body: {
+        title: 'Globex support retainer',
+        type: 'CLIENT' as const,
+        counterpartyId: counterparties.get('Globex Corporation')!,
+        value: '18000.00',
+        currency: 'USD',
+        startDate: isoIn(-359),
+        endDate: isoIn(6),
+        autoRenew: false,
+        clauses: [
+          { key: 'scope', heading: 'Scope', body: 'Second-line support for the Globex integration, business hours.' },
+          { key: 'fees', heading: 'Fees', body: '1,500 USD per month.' },
+        ],
+      },
+    },
+    {
+      owner: 'procurement@contracthub.dev',
+      body: {
+        title: 'Initech printer lease',
+        type: 'VENDOR' as const,
+        counterpartyId: counterparties.get('Initech Office Supplies')!,
+        value: '6000.00',
+        currency: 'USD',
+        startDate: isoIn(-340),
+        endDate: isoIn(25),
+        autoRenew: true,
+        clauses: [{ key: 'lease', heading: 'Lease', body: 'Three multifunction printers, maintenance included.' }],
+      },
+    },
+  ];
+
   let created = 0;
+  for (const demo of inForce) {
+    if (await prisma.contract.findFirst({ where: { title: demo.body.title } })) continue;
+    const owner = await prisma.user.findUniqueOrThrow({ where: { email: demo.owner } });
+    const principal = { id: owner.id, email: owner.email, role: owner.role, departmentId: owner.departmentId };
+    const contract = await runWithContext({ requestId: 'seed', user: principal }, () => contractService.create(principal, demo.body, null));
+    // Imported as already signed and in force (demo data skips the approval round).
+    await prisma.contract.update({ where: { id: contract.id }, data: { status: 'ACTIVE', activatedAt: new Date(demo.body.startDate) } });
+    await prisma.contractStatusChange.create({
+      data: { contractId: contract.id, fromStatus: 'DRAFT', toStatus: 'ACTIVE', actorId: owner.id, reason: 'Imported as an active contract (demo data)' },
+    });
+    created++;
+  }
+
   for (const demo of demos) {
     if (await prisma.contract.findFirst({ where: { title: demo.body.title } })) continue;
     const owner = await prisma.user.findUniqueOrThrow({ where: { email: demo.owner } });

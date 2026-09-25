@@ -22,7 +22,7 @@ export interface PromptData {
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>
       @if (data.message) {
-        <p class="mb-4 text-sm text-slate-600">{{ data.message }}</p>
+        <p class="mb-4 text-sm text-body">{{ data.message }}</p>
       }
       <mat-form-field class="w-full">
         <mat-label>{{ data.label }}</mat-label>

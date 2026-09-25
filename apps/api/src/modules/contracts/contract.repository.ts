@@ -132,6 +132,8 @@ export const contractRepository = {
         terminatedAt: true,
         terminationReason: true,
         renewalOfId: true,
+        renewalOf: { select: { id: true, referenceNumber: true, title: true, status: true } },
+        renewedBy: { select: { id: true, referenceNumber: true, title: true, status: true } },
         attachments: { select: attachmentSelect, orderBy: { createdAt: 'asc' } },
         approvalRequests: {
           select: { id: true, status: true, currentStage: true, submittedAt: true, completedAt: true },

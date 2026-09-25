@@ -12,7 +12,9 @@ const read = requirePermission(Permission.CONTRACT_READ);
 contractsRouter.get('/', read, c.list);
 // Create/update accept JSON, or multipart with a `data` JSON field plus an optional `document` file.
 contractsRouter.post('/', requirePermission(Permission.CONTRACT_CREATE), singleFile('document'), c.create);
+contractsRouter.get('/export.csv', read, c.exportCsv);
 contractsRouter.get('/:id', read, c.get);
+contractsRouter.post('/:id/terminate', requirePermission(Permission.CONTRACT_TERMINATE), c.terminate);
 contractsRouter.patch('/:id', requirePermission(Permission.CONTRACT_UPDATE), singleFile('document'), c.update);
 
 contractsRouter.get('/:id/timeline', read, c.timeline);

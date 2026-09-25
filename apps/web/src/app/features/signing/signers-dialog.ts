@@ -28,11 +28,11 @@ interface Row {
   template: `
     <h2 mat-dialog-title>Signers</h2>
     <mat-dialog-content class="!max-w-2xl">
-      <p class="mb-4 text-sm text-slate-600">
+      <p class="mb-4 text-sm text-body">
         Lower numbers sign first; people with the same number sign in any order. External signers receive a personal link by email.
       </p>
       @for (r of rows(); track $index; let i = $index) {
-        <div class="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2">
+        <div class="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-line p-2">
           <mat-form-field subscriptSizing="dynamic" class="w-20">
             <mat-label>Order</mat-label>
             <input matInput type="number" min="1" max="10" [(ngModel)]="r.signingOrder" [name]="'o' + i" />
@@ -64,7 +64,7 @@ interface Row {
         <button mat-stroked-button (click)="add('external')"><mat-icon>alternate_email</mat-icon>External signer</button>
       </div>
       @if (error()) {
-        <p class="mt-3 rounded-md bg-rose-50 p-2 text-sm text-rose-700" role="alert">{{ error() }}</p>
+        <p class="mt-3 callout tone-danger" role="alert">{{ error() }}</p>
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">

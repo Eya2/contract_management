@@ -14,6 +14,7 @@ import {
   DiffQuery,
   IdParams,
   ListContractsQuery,
+  TerminateBody,
   UpdateContractBody,
   VersionParams,
 } from './contract.schemas.js';
@@ -34,9 +35,56 @@ function sendFile(res: Response, file: { originalName: string; mimeType: string;
   stream.pipe(res);
 }
 
+/**
+ * One CSV cell. Quoted and escaped; a leading = + - @ (or tab/CR) is prefixed
+ * with ' so a spreadsheet shows it as text instead of running it as a formula
+ * (CSV/formula injection).
+ */
+function csvCell(value: unknown): string {
+  let s = value === null || value === undefined ? '' : String(value);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
 export const contractController = {
   async list(req: Request, res: Response) {
     res.json(await contractService.list(currentUser(req), ListContractsQuery.parse(req.query)));
+  },
+
+  async exportCsv(req: Request, res: Response) {
+    const query = ListContractsQuery.parse(req.query);
+    const rows = await contractService.exportRows(currentUser(req), query);
+    const header = ['Reference', 'Title', 'Type', 'Status', 'Counterparty', 'Value', 'Currency', 'Start', 'End', 'Auto-renew', 'Owner', 'Department', 'Version', 'Updated'];
+    const lines = rows.map((c) =>
+      [
+        c.referenceNumber,
+        c.title,
+        c.type,
+        c.status,
+        c.counterparty.name,
+        c.value?.toString() ?? '',
+        c.currency,
+        c.startDate?.toISOString().slice(0, 10),
+        c.endDate?.toISOString().slice(0, 10),
+        c.autoRenew ? 'yes' : 'no',
+        `${c.owner.firstName} ${c.owner.lastName}`,
+        c.department.name,
+        c.currentVersionNumber,
+        c.updatedAt.toISOString(),
+      ]
+        .map(csvCell)
+        .join(','),
+    );
+    res.attachment(`contracts-${new Date().toISOString().slice(0, 10)}.csv`);
+    res.type('text/csv; charset=utf-8');
+    // BOM so Excel opens UTF-8 (accents, currency symbols) correctly.
+    res.send('\uFEFF' + [header.map(csvCell).join(','), ...lines].join('\r\n'));
+  },
+
+  async terminate(req: Request, res: Response) {
+    const { id } = IdParams.parse(req.params);
+    const { reason } = TerminateBody.parse(req.body);
+    res.json(await contractService.terminate(currentUser(req), id, reason));
   },
 
   async get(req: Request, res: Response) {

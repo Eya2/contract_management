@@ -2,6 +2,12 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
+  Profile,
+  AdminUser,
+  DepartmentOverview,
+  EmailStatus,
+  Policy,
+  PolicyStep,
   ApprovalPreview,
   ApprovalRequest,
   AppNotification,
@@ -104,6 +110,41 @@ export class Api {
   publicSigning = (token: string) => this.get<PublicSigningView>(`/api/signing/${token}`);
   publicSign = (token: string, body: SignaturePayload) => this.post<PublicSigningView>(`/api/signing/${token}/sign`, body);
   publicDecline = (token: string, reason: string) => this.post<PublicSigningView>(`/api/signing/${token}/decline`, { reason });
+
+  terminate = (id: string, reason: string) => this.post<ContractDetail>(`/api/contracts/${id}/terminate`, { reason });
+  exportContracts = (q: ContractQuery) => {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)) params.set(k, Array.isArray(v) ? v.join(',') : String(v));
+    return this.download(`/api/contracts/export.csv?${params}`, 'contracts.csv');
+  };
+
+  // --- account ---------------------------------------------------------------
+  forgotPassword = (email: string) => this.post<{ message: string }>('/api/auth/forgot-password', { email });
+  checkResetToken = (token: string) => this.get<{ valid: boolean }>(`/api/auth/reset-password/${token}`);
+  resetPassword = (token: string, password: string) => this.post<void>('/api/auth/reset-password', { token, password });
+  changePassword = (currentPassword: string, newPassword: string) => this.post<void>('/api/auth/change-password', { currentPassword, newPassword });
+  updateProfile = (body: { firstName: string; lastName: string }) => firstValueFrom(this.http.patch<Profile>('/api/auth/me', body));
+  allNotifications = (before?: string) => this.get<{ items: AppNotification[]; unreadCount: number }>('/api/notifications', { limit: 30, before });
+
+  renew = (id: string) => this.post<ContractDetail>(`/api/contracts/${id}/renew`);
+
+  // --- administration --------------------------------------------------------
+  departments = () => this.get<{ id: string; name: string; code: string }[]>('/api/departments');
+  departmentsOverview = () => this.get<DepartmentOverview[]>('/api/departments/overview');
+  createDepartment = (body: { name: string; code: string }) => this.post<DepartmentOverview>('/api/departments', body);
+  setDepartmentHead = (id: string, userId: string | null) => firstValueFrom(this.http.put(`/api/departments/${id}/head`, { userId }));
+  users = (q: { q?: string; role?: string; departmentId?: string }) => this.get<AdminUser[]>('/api/users', q);
+  createUser = (body: Record<string, unknown>) => this.post<AdminUser>('/api/users', body);
+  updateUser = (id: string, body: Record<string, unknown>) => firstValueFrom(this.http.patch<AdminUser>(`/api/users/${id}`, body));
+  policies = () => this.get<Policy[]>('/api/workflow-templates');
+  policy = (id: string) => this.get<Policy>(`/api/workflow-templates/${id}`);
+  savePolicy = (id: string | null, body: { name: string; description: string | null; contractType: string | null; departmentId: string | null; isActive: boolean; steps: Omit<PolicyStep, 'id' | 'conditionText'>[] }) =>
+    id ? firstValueFrom(this.http.put<Policy>(`/api/workflow-templates/${id}`, body)) : this.post<Policy>('/api/workflow-templates', body);
+  deactivatePolicy = (id: string) => firstValueFrom(this.http.delete<void>(`/api/workflow-templates/${id}`));
+  emails = (status?: string) => this.get<EmailStatus>('/api/admin/emails', { status, limit: 100 });
+  retryEmails = () => this.post<{ retried: number }>('/api/admin/emails/retry');
+  audit = (q: { action?: string; before?: string }) =>
+    this.get<{ items: AuditEntry[]; nextCursor: string | null }>('/api/audit', { ...q, limit: 50 });
 
   // --- notifications & audit -------------------------------------------------
   notifications = (limit = 15) => this.get<{ items: AppNotification[]; unreadCount: number }>('/api/notifications', { limit });

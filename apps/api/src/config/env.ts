@@ -32,6 +32,11 @@ const EnvSchema = z.object({
 
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().int().default(1025),
+  /** Credentials for a real mail provider (e.g. Gmail with an app password). Leave empty for Mailpit. */
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  /** true for implicit TLS (port 465); STARTTLS on 587 is negotiated automatically. */
+  SMTP_SECURE: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   MAIL_FROM: z.string().default('Contract Hub <no-reply@contracthub.local>'),
 });
 

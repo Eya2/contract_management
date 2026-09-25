@@ -124,3 +124,5 @@ export const AttachmentBody = z.object({
   kind: z.enum(['SUPPORTING', 'SIGNED_COPY']).default('SUPPORTING'),
   description: z.string().trim().max(500).optional(),
 });
+
+export const TerminateBody = z.object({ reason: z.string().trim().min(3).max(2000) });

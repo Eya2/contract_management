@@ -30,6 +30,11 @@ export class AuthService {
     return this.token();
   }
 
+  /** After the user edits their own profile. */
+  setProfile(profile: Profile) {
+    this.user.set(profile);
+  }
+
   can(permission: string): boolean {
     return this.user()?.permissions.includes(permission) ?? false;
   }

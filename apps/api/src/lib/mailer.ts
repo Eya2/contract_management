@@ -8,15 +8,19 @@ export interface EmailMessage {
 }
 
 /**
- * SMTP transport. In development this points at Mailpit, which catches every
- * message (http://localhost:8025) so nothing reaches a real inbox.
+ * SMTP transport. By default it points at Mailpit, which catches every message
+ * (http://localhost:8025) so nothing reaches a real inbox. With SMTP_USER and
+ * SMTP_PASS set it logs in to a real provider over TLS and delivers for real.
  */
+const realProvider = !!env.SMTP_USER;
 const transport = nodemailer.createTransport({
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
-  secure: false,
-  // Mailpit has no TLS; a real provider would be configured with auth + TLS.
-  ignoreTLS: env.NODE_ENV !== 'production',
+  secure: env.SMTP_SECURE,
+  ...(realProvider
+    ? { auth: { user: env.SMTP_USER, pass: env.SMTP_PASS }, requireTLS: !env.SMTP_SECURE }
+    : // Mailpit speaks plain SMTP.
+      { ignoreTLS: true }),
 });
 
 export async function sendEmail(message: EmailMessage): Promise<void> {

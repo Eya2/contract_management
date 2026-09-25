@@ -3,22 +3,36 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Api } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { CountsService } from '../../core/counts.service';
 import type { ContractDetail } from '../../core/models';
 import { Toast } from '../../core/toast.service';
-import { date, dateTime, fileSize, fullName, humanize, money } from '../../shared/format';
+import { Avatar } from '../../shared/avatar';
+import { date, dateTime, daysUntil, fileSize, fullName, humanize, money } from '../../shared/format';
 import { PromptDialog, type PromptData } from '../../shared/prompt-dialog';
+import { Skeleton } from '../../shared/skeleton';
 import { StatusBadge } from '../../shared/status-badge';
 import { ActivityPanel } from './activity-panel';
 import { ApprovalsPanel } from './approvals-panel';
+import { TYPE_ICON } from './contracts-list.page';
 import { SignaturesPanel } from './signatures-panel';
 import { VersionsPanel } from './versions-panel';
 
 const TABS = ['overview', 'approvals', 'signatures', 'versions', 'activity'] as const;
+
+/** The lifecycle as the user thinks of it; statuses map onto these milestones. */
+const MILESTONES = [
+  { label: 'Draft', statuses: ['DRAFT', 'REJECTED'] },
+  { label: 'Review', statuses: ['SUBMITTED', 'UNDER_REVIEW'] },
+  { label: 'Approved', statuses: ['APPROVED'] },
+  { label: 'Signed', statuses: ['SIGNED'] },
+  { label: 'In force', statuses: ['ACTIVE'] },
+  { label: 'Ended', statuses: ['EXPIRED', 'RENEWED', 'TERMINATED'] },
+];
 
 @Component({
   imports: [
@@ -27,30 +41,38 @@ const TABS = ['overview', 'approvals', 'signatures', 'versions', 'activity'] as 
     MatIconModule,
     MatMenuModule,
     MatTabsModule,
-    MatProgressSpinnerModule,
+    MatTooltipModule,
     StatusBadge,
+    Avatar,
+    Skeleton,
     ApprovalsPanel,
     SignaturesPanel,
     VersionsPanel,
     ActivityPanel,
   ],
   template: `
-    <a routerLink="/contracts" class="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-ink">
-      <mat-icon class="!size-[18px] !text-[18px]">arrow_back</mat-icon>Contracts
+    <a routerLink="/contracts" class="mb-5 inline-flex items-center gap-1 text-sm font-medium text-muted transition-colors hover:text-ink">
+      <mat-icon class="!size-[18px] !text-[18px]">arrow_back</mat-icon>All contracts
     </a>
 
     @if (contract.error()) {
-      <p class="rounded-lg bg-rose-50 p-6 text-rose-700">This contract doesn't exist or you don't have access to it.</p>
+      <div class="callout tone-danger"><mat-icon>lock</mat-icon>This contract doesn't exist, or you don't have access to it.</div>
     } @else if (contract.value(); as c) {
-      <header class="mb-6 flex flex-wrap items-start gap-4">
+      <header class="mb-6 flex animate-rise flex-wrap items-start gap-5">
+        <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-ink">
+          <mat-icon class="!size-7 !text-[28px]">{{ typeIcon[c.type] }}</mat-icon>
+        </span>
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-3">
-            <h1 class="text-2xl font-bold text-ink">{{ c.title }}</h1>
+            <h1 class="text-2xl font-semibold sm:text-[28px]">{{ c.title }}</h1>
             <cms-status [status]="c.status" />
           </div>
-          <p class="mt-1 text-sm text-slate-500">
-            {{ c.referenceNumber }} · version {{ c.currentVersionNumber }} · {{ c.counterparty.name }} · owned by {{ fullName(c.owner) }} ({{ c.department.name }})
-          </p>
+          <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+            <span class="font-mono text-xs">{{ c.referenceNumber }}</span>
+            <span>Version {{ c.currentVersionNumber }}</span>
+            <span class="flex items-center gap-1"><mat-icon class="!size-4 !text-[16px]">apartment</mat-icon>{{ c.counterparty.name }}</span>
+            <span class="flex items-center gap-1.5"><cms-avatar [name]="fullName(c.owner)" [size]="20" />{{ fullName(c.owner) }} · {{ c.department.name }}</span>
+          </div>
         </div>
         <div class="flex flex-wrap gap-2">
           @for (a of actions(); track a.id) {
@@ -63,74 +85,123 @@ const TABS = ['overview', 'approvals', 'signatures', 'versions', 'activity'] as 
         </div>
       </header>
 
-      @if (c.status === 'REJECTED') {
-        <div class="mb-6 flex items-center gap-3 rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          <mat-icon>info</mat-icon> This contract was rejected. See the Approvals tab for the reason, then edit it to start a revision.
-        </div>
-      }
+      <!-- Lifecycle -->
+      <ol class="card mb-6 flex animate-rise items-center gap-2 overflow-x-auto px-5 py-4 text-sm [animation-delay:60ms]" aria-label="Lifecycle">
+        @for (m of milestones; track m.label; let i = $index, last = $last) {
+          <li class="flex shrink-0 items-center gap-2" [attr.aria-current]="i === stage() ? 'step' : null">
+            <span
+              class="flex size-7 items-center justify-center rounded-full text-xs font-semibold transition-all duration-500"
+              [class]="i < stage() ? 'bg-emerald-500 text-white' : i === stage() ? 'bg-[var(--accent)] text-white ring-4 ring-[var(--accent-soft)]' : 'bg-subtle text-faint'"
+            >
+              @if (i < stage()) {
+                <mat-icon class="!size-4 !text-[16px]">check</mat-icon>
+              } @else {
+                {{ i + 1 }}
+              }
+            </span>
+            <span [class]="i === stage() ? 'font-semibold text-ink' : i < stage() ? 'text-body' : 'text-faint'">{{ m.label }}</span>
+          </li>
+          @if (!last) {
+            <li aria-hidden="true" class="h-px min-w-6 flex-1 transition-colors duration-500" [class]="i < stage() ? 'bg-emerald-400' : 'bg-line'"></li>
+          }
+        }
+      </ol>
 
-      <mat-tab-group [selectedIndex]="tabIndex()" (selectedIndexChange)="selectTab($event)" animationDuration="0ms" mat-stretch-tabs="false">
+      <!-- Situational banners -->
+      <div class="mb-6 space-y-3 empty:hidden">
+        @if (c.status === 'REJECTED') {
+          <div class="callout tone-danger animate-rise"><mat-icon>info</mat-icon><span>This contract was rejected. The reason is in <b>Approvals</b>; choose <b>Revise</b> to start a new version.</span></div>
+        }
+        @if (endsIn() !== null && c.status === 'ACTIVE' && endsIn()! <= 30) {
+          <div class="callout animate-rise" [class]="endsIn()! <= 7 ? 'tone-danger' : 'tone-warning'">
+            <mat-icon>event_upcoming</mat-icon>
+            <span class="flex-1">
+              <b>{{ endsIn() === 0 ? 'Ends today' : endsIn() === 1 ? 'Ends tomorrow' : 'Ends in ' + endsIn() + ' days' }}</b> ({{ date(c.endDate) }}).
+              @if (c.renewedBy) {
+                Its renewal {{ c.renewedBy.referenceNumber }} is {{ humanize(c.renewedBy.status).toLowerCase() }}.
+              } @else if (c.autoRenew) {
+                It renews automatically for another term on the same terms.
+              } @else {
+                It does not renew automatically.
+              }
+            </span>
+          </div>
+        }
+        @if (c.renewalOf; as prev) {
+          <a [routerLink]="['/contracts', prev.id]" class="callout tone-info animate-rise transition-opacity hover:opacity-90">
+            <mat-icon>history</mat-icon><span class="flex-1">Renewal of <b>{{ prev.referenceNumber }}</b> · {{ prev.title }}</span><cms-status [status]="prev.status" />
+          </a>
+        }
+        @if (c.renewedBy; as next) {
+          <a [routerLink]="['/contracts', next.id]" class="callout tone-info animate-rise transition-opacity hover:opacity-90">
+            <mat-icon>autorenew</mat-icon><span class="flex-1">Renewed by <b>{{ next.referenceNumber }}</b> · {{ next.title }}</span><cms-status [status]="next.status" />
+          </a>
+        }
+      </div>
+
+      <mat-tab-group [selectedIndex]="tabIndex()" (selectedIndexChange)="selectTab($event)" animationDuration="200ms" mat-stretch-tabs="false" mat-align-tabs="start">
         <mat-tab label="Overview">
           <div class="grid gap-6 pt-6 lg:grid-cols-3">
             <section class="space-y-6 lg:col-span-2">
-              <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-                  <div><dt class="text-slate-500">Type</dt><dd class="font-medium">{{ humanize(c.type) }}</dd></div>
-                  <div><dt class="text-slate-500">Value</dt><dd class="font-medium">{{ money(c.value, c.currency) }}</dd></div>
-                  <div><dt class="text-slate-500">Auto-renew</dt><dd class="font-medium">{{ c.autoRenew ? 'Yes' : 'No' }}</dd></div>
-                  <div><dt class="text-slate-500">Starts</dt><dd class="font-medium">{{ date(c.startDate) }}</dd></div>
-                  <div><dt class="text-slate-500">Ends</dt><dd class="font-medium">{{ date(c.endDate) }}</dd></div>
-                  <div><dt class="text-slate-500">Last change</dt><dd class="font-medium">{{ dateTime(c.updatedAt) }}</dd></div>
-                </dl>
+              <div class="card grid grid-cols-2 gap-5 p-5 text-sm sm:grid-cols-3">
+                @for (f of facts(); track f.label) {
+                  <div>
+                    <p class="text-xs text-muted">{{ f.label }}</p>
+                    <p class="mt-0.5 flex items-center gap-1 font-medium text-ink">
+                      @if (f.icon) {
+                        <mat-icon class="!size-4 !text-[16px] text-muted">{{ f.icon }}</mat-icon>
+                      }
+                      {{ f.value }}
+                    </p>
+                  </div>
+                }
               </div>
-              <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <h2 class="mb-2 font-semibold text-ink">Clauses</h2>
+              <div class="card p-6">
+                <h2 class="mb-1 font-semibold">Clauses</h2>
                 @for (cl of c.currentVersion.clauses; track cl.key; let i = $index) {
-                  <article class="border-t border-slate-100 py-4 first:border-0">
-                    <h3 class="font-medium text-ink">{{ i + 1 }}. {{ cl.heading }}</h3>
-                    <p class="mt-1 text-sm leading-relaxed whitespace-pre-line text-slate-700">{{ cl.body }}</p>
+                  <article class="stagger border-t border-line-soft py-4 first-of-type:border-0" [style.--i]="i">
+                    <h3 class="font-medium"><span class="mr-1 text-faint tabular-nums">{{ i + 1 }}.</span> {{ cl.heading }}</h3>
+                    <p class="mt-1.5 text-[15px] leading-relaxed whitespace-pre-line text-body">{{ cl.body }}</p>
                   </article>
                 } @empty {
-                  <p class="text-sm text-slate-500">This contract is defined by its uploaded document.</p>
+                  <p class="text-sm text-muted">This contract is defined by its uploaded document.</p>
                 }
               </div>
             </section>
             <aside class="space-y-6">
-              <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <h2 class="mb-3 font-semibold text-ink">Document</h2>
+              <div class="card p-5">
+                <h2 class="mb-3 font-semibold">Document</h2>
                 @if (c.currentVersion.file; as f) {
-                  <button class="flex w-full items-center gap-2 rounded-lg bg-slate-50 p-3 text-left text-sm hover:bg-slate-100" (click)="downloadDocument(c, f.originalName)">
-                    <mat-icon class="text-rose-600">picture_as_pdf</mat-icon>
-                    <span class="min-w-0 flex-1 truncate">{{ f.originalName }}</span>
-                    <span class="text-xs text-slate-500">{{ fileSize(f.sizeBytes) }}</span>
+                  <button class="group flex w-full items-center gap-3 rounded-xl bg-subtle p-3 text-left text-sm transition-colors hover:bg-subtle-strong" (click)="downloadDocument(c, f.originalName)">
+                    <span class="flex size-10 items-center justify-center rounded-lg bg-rose-100 text-rose-600 dark:bg-rose-400/15 dark:text-rose-300"><mat-icon>picture_as_pdf</mat-icon></span>
+                    <span class="min-w-0 flex-1"><span class="block truncate font-medium text-ink">{{ f.originalName }}</span><span class="text-xs text-muted">{{ fileSize(f.sizeBytes) }}</span></span>
+                    <mat-icon class="text-faint transition-transform group-hover:translate-y-0.5">download</mat-icon>
                   </button>
-                  <p class="mt-2 font-mono text-[11px] break-all text-slate-400" title="SHA-256">{{ f.sha256 }}</p>
+                  <p class="mt-2 truncate font-mono text-[10px] text-faint" [matTooltip]="'SHA-256 ' + f.sha256">SHA-256 {{ f.sha256 }}</p>
                 } @else {
-                  <p class="text-sm text-slate-500">No document uploaded.</p>
+                  <p class="text-sm text-muted">No document uploaded.</p>
                 }
               </div>
-              <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+              <div class="card p-5">
                 <div class="mb-3 flex items-center justify-between">
-                  <h2 class="font-semibold text-ink">Attachments</h2>
+                  <h2 class="font-semibold">Attachments</h2>
                   @if (isOwnerOrAdmin() && !['RENEWED', 'TERMINATED'].includes(c.status)) {
-                    <label class="cursor-pointer text-sm font-medium text-brand-600 hover:underline">
-                      Add file<input type="file" class="sr-only" (change)="attach($event)" />
+                    <label class="flex cursor-pointer items-center gap-1 text-sm font-medium text-accent hover:underline">
+                      <mat-icon class="!size-4 !text-[16px]">add</mat-icon>Add<input type="file" class="sr-only" (change)="attach($event)" />
                     </label>
                   }
                 </div>
-                <ul class="space-y-2">
+                <ul class="space-y-1">
                   @for (a of c.attachments; track a.id) {
-                    <li class="flex items-center gap-2 text-sm">
-                      <mat-icon class="!size-5 !text-[20px] text-slate-400">attach_file</mat-icon>
-                      <button class="min-w-0 flex-1 truncate text-left hover:text-brand-700" (click)="downloadAttachment(c, a.id, a.file.originalName)">
-                        {{ a.description || a.file.originalName }}
-                      </button>
+                    <li class="group flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-subtle">
+                      <mat-icon class="!size-5 !text-[20px] text-faint">attach_file</mat-icon>
+                      <button class="min-w-0 flex-1 truncate text-left text-body hover:text-accent" (click)="downloadAttachment(c, a.id, a.file.originalName)">{{ a.description || a.file.originalName }}</button>
                       @if (isOwnerOrAdmin() && ['DRAFT', 'REJECTED'].includes(c.status) && a.kind === 'SUPPORTING') {
-                        <button mat-icon-button (click)="removeAttachment(c, a.id)" aria-label="Remove attachment"><mat-icon>close</mat-icon></button>
+                        <button mat-icon-button class="opacity-0 group-hover:opacity-100" (click)="removeAttachment(c, a.id)" aria-label="Remove attachment"><mat-icon>close</mat-icon></button>
                       }
                     </li>
                   } @empty {
-                    <li class="text-sm text-slate-500">None.</li>
+                    <li class="text-sm text-muted">None yet.</li>
                   }
                 </ul>
               </div>
@@ -151,13 +222,14 @@ const TABS = ['overview', 'approvals', 'signatures', 'versions', 'activity'] as 
         </mat-tab>
       </mat-tab-group>
     } @else {
-      <mat-spinner diameter="32" />
+      <div class="card"><cms-skeleton [rows]="5" /></div>
     }
   `,
 })
 export class ContractDetailPage {
   private readonly api = inject(Api);
   private readonly auth = inject(AuthService);
+  private readonly counts = inject(CountsService);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly toast = inject(Toast);
@@ -167,22 +239,45 @@ export class ContractDetailPage {
 
   protected readonly revision = signal(0);
   protected readonly busy = signal(false);
-  protected readonly contract = resource({
-    params: () => this.id(),
-    loader: ({ params }) => this.api.contract(params),
-  });
+  protected readonly contract = resource({ params: () => this.id(), loader: ({ params }) => this.api.contract(params) });
   protected readonly tabIndex = linkedSignal(() => Math.max(0, TABS.indexOf((this.tab() ?? 'overview') as (typeof TABS)[number])));
+  protected readonly milestones = MILESTONES;
+  protected readonly typeIcon = TYPE_ICON;
+
+  protected readonly stage = computed(() => {
+    const s = this.contract.value()?.status ?? 'DRAFT';
+    return MILESTONES.findIndex((m) => m.statuses.includes(s));
+  });
+  protected readonly endsIn = computed(() => daysUntil(this.contract.value()?.endDate));
 
   protected readonly isOwnerOrAdmin = computed(() => {
     const u = this.auth.user();
     return u?.role === 'ADMIN' || this.contract.value()?.owner.id === u?.id;
   });
 
+  protected readonly facts = computed(() => {
+    const c = this.contract.value();
+    if (!c) return [];
+    return [
+      { label: 'Type', value: humanize(c.type), icon: TYPE_ICON[c.type] },
+      { label: 'Value', value: money(c.value, c.currency) },
+      { label: 'Renewal', value: c.autoRenew ? 'Automatic' : 'Manual', icon: c.autoRenew ? 'autorenew' : 'front_hand' },
+      { label: 'Starts', value: date(c.startDate) },
+      { label: 'Ends', value: date(c.endDate) },
+      { label: 'Last change', value: dateTime(c.updatedAt) },
+    ];
+  });
+
   /** Which workflow buttons to show; the server enforces the same rules. */
   protected readonly actions = computed(() => {
     const c = this.contract.value();
-    if (!c || !this.isOwnerOrAdmin()) return [];
+    if (!c) return [];
     const list: { id: string; label: string; icon: string; primary?: boolean }[] = [];
+    // Terminating is for admins and managers of the contract's department, not only the owner.
+    const u = this.auth.user();
+    const canTerminate = this.auth.can('contract.terminate') && (u?.role === 'ADMIN' || u?.department.id === c.department.id);
+    if (['ACTIVE', 'SIGNED'].includes(c.status) && canTerminate) list.push({ id: 'terminate', label: 'Terminate', icon: 'cancel' });
+    if (!this.isOwnerOrAdmin()) return list;
     if (['DRAFT', 'REJECTED'].includes(c.status) && this.auth.can('contract.update')) {
       list.push({ id: 'edit', label: c.status === 'REJECTED' ? 'Revise' : 'Edit', icon: 'edit' });
     }
@@ -192,12 +287,13 @@ export class ContractDetailPage {
       list.push({ id: 'reopen', label: 'Reopen', icon: 'lock_open' });
       list.push({ id: 'signatures', label: 'Signatures', icon: 'draw', primary: true });
     }
+    if (['ACTIVE', 'EXPIRED', 'SIGNED'].includes(c.status) && !c.renewedBy && c.endDate && this.auth.can('contract.create')) {
+      list.push({ id: 'renew', label: 'Renew', icon: 'autorenew', primary: c.status !== 'SIGNED' });
+    }
     return list;
   });
 
-  protected readonly money = money;
   protected readonly date = date;
-  protected readonly dateTime = dateTime;
   protected readonly humanize = humanize;
   protected readonly fullName = fullName;
   protected readonly fileSize = fileSize;
@@ -206,6 +302,7 @@ export class ContractDetailPage {
   protected refresh() {
     this.contract.reload();
     this.revision.update((r) => r + 1);
+    void this.counts.refresh();
   }
 
   protected selectTab(index: number) {
@@ -222,9 +319,37 @@ export class ContractDetailPage {
       case 'signatures':
         this.selectTab(TABS.indexOf('signatures'));
         return;
+      case 'terminate':
+        return this.prompt(
+          {
+            title: 'Terminate this contract',
+            message: 'It ends now, before its term. This can’t be undone; the reason is kept on the contract and in its history.',
+            label: 'Reason for termination',
+            confirm: 'Terminate',
+            minLength: 3,
+            danger: true,
+          },
+          (text) => this.api.terminate(c.id, text),
+          'Contract terminated',
+        );
+      case 'renew':
+        return this.prompt(
+          {
+            title: 'Renew this contract',
+            message: 'A draft for the next term is created with the same clauses and document, dated to follow this one. It goes through approval and signature like any new contract.',
+            label: 'Note (optional, not saved)',
+            confirm: 'Create renewal draft',
+            minLength: 0,
+          },
+          async () => {
+            const next = await this.api.renew(c.id);
+            await this.router.navigate(['/contracts', next.id]);
+          },
+          'Renewal draft created',
+        );
       case 'submit':
         return this.prompt(
-          { title: 'Submit for approval', message: 'The current version is sent to the approvers. It can’t be edited while in review.', label: 'Note for the approvers (optional)', confirm: 'Submit', minLength: 0 },
+          { title: 'Submit for approval', message: 'The current version goes to the approvers and can’t be edited while in review.', label: 'Note for the approvers (optional)', confirm: 'Submit', minLength: 0 },
           (text) => this.api.submit(c.id, text || undefined),
           'Submitted for approval',
           'approvals',
@@ -246,7 +371,7 @@ export class ContractDetailPage {
 
   private prompt(data: PromptData, action: (text: string) => Promise<unknown>, done: string, thenTab?: string) {
     this.dialog
-      .open(PromptDialog, { data, width: '480px' })
+      .open(PromptDialog, { data, width: '500px' })
       .afterClosed()
       .subscribe(async (text?: string) => {
         if (text === undefined) return;
@@ -273,8 +398,8 @@ export class ContractDetailPage {
   }
 
   protected async attach(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
+    const inputEl = e.target as HTMLInputElement;
+    const file = inputEl.files?.[0];
     if (!file) return;
     const form = new FormData();
     form.append('file', file);
@@ -285,7 +410,7 @@ export class ContractDetailPage {
     } catch (err) {
       this.toast.error(err);
     } finally {
-      input.value = '';
+      inputEl.value = '';
     }
   }
 

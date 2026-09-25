@@ -18,15 +18,15 @@ import { SignersDialog } from '../signing/signers-dialog';
   imports: [MatButtonModule, MatIconModule, StatusBadge],
   template: `
     @if (!info.value()?.contentHash) {
-      <p class="py-10 text-center text-sm text-slate-500">Signatures are collected once the contract is approved.</p>
+      <p class="py-10 text-center text-sm text-muted">Signatures are collected once the contract is approved.</p>
     } @else {
       @let i = info.value()!;
       <div class="mb-4 flex flex-wrap items-center gap-3">
-        <p class="text-sm text-slate-600">Signing version {{ i.versionNumber }} · fingerprint <span class="font-mono text-xs">{{ i.contentHash!.slice(0, 16) }}…</span></p>
+        <p class="text-sm text-body">Signing version {{ i.versionNumber }} · fingerprint <span class="font-mono text-xs">{{ i.contentHash!.slice(0, 16) }}…</span></p>
         <span class="flex-1"></span>
         @if (me(); as m) {
           @if (m.canSign) {
-            <button mat-stroked-button class="!text-rose-700" (click)="decline()">Decline</button>
+            <button mat-stroked-button class="!text-rose-600 dark:!text-rose-400" (click)="decline()">Decline</button>
             <button mat-flat-button (click)="sign()"><mat-icon>draw</mat-icon>Sign now</button>
           }
         }
@@ -34,16 +34,16 @@ import { SignersDialog } from '../signing/signers-dialog';
           <button mat-stroked-button (click)="chooseSigners()"><mat-icon>group</mat-icon>{{ i.signers.length ? 'Change signers' : 'Choose signers' }}</button>
         }
       </div>
-      <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
-        <ul class="divide-y divide-slate-100">
+      <div class="overflow-hidden card">
+        <ul class="divide-y divide-line-soft">
           @for (s of i.signers; track s.id) {
             <li class="flex flex-wrap items-start gap-4 px-5 py-4">
-              <span class="mt-1 flex size-7 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{{ s.signingOrder }}</span>
+              <span class="mt-1 flex size-7 items-center justify-center rounded-full bg-subtle-strong text-xs font-semibold text-body">{{ s.signingOrder }}</span>
               <div class="min-w-0 flex-1">
-                <p class="font-medium text-ink">{{ s.name }} @if (s.isMe) {<span class="text-xs text-brand-600">(you)</span>}</p>
-                <p class="text-xs text-slate-500">{{ s.email }} · {{ s.userId ? 'internal' : 'external' }}</p>
+                <p class="font-medium text-ink">{{ s.name }} @if (s.isMe) {<span class="text-xs text-accent">(you)</span>}</p>
+                <p class="text-xs text-muted">{{ s.email }} · {{ s.userId ? 'internal' : 'external' }}</p>
                 @if (s.status === 'SIGNED') {
-                  <div class="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                  <div class="mt-2 rounded-lg bg-subtle p-3 text-xs text-body">
                     @if (s.method === 'TYPED') {
                       <p class="mb-1 text-2xl text-ink" style="font-family: 'Brush Script MT', 'Segoe Script', cursive">{{ s.typedSignature }}</p>
                     } @else {
@@ -54,13 +54,13 @@ import { SignersDialog } from '../signing/signers-dialog';
                   </div>
                 }
                 @if (s.declineReason) {
-                  <p class="mt-2 text-sm text-rose-700">Declined: {{ s.declineReason }}</p>
+                  <p class="mt-2 text-sm text-rose-700 dark:text-rose-300">Declined: {{ s.declineReason }}</p>
                 }
               </div>
               <cms-status [status]="s.status" />
             </li>
           } @empty {
-            <li class="px-5 py-8 text-center text-sm text-slate-500">No signers yet.</li>
+            <li class="px-5 py-8 text-center text-sm text-muted">No signers yet.</li>
           }
         </ul>
       </div>

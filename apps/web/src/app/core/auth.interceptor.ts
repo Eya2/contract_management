@@ -4,7 +4,7 @@ import { catchError, from, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
 /** Endpoints that must not carry the bearer token or trigger a refresh. */
-const PUBLIC = [/^\/api\/auth\/(login|refresh|logout)$/, /^\/api\/signing\//];
+const PUBLIC = [/^\/api\/auth\/(login|refresh|logout|forgot-password|reset-password)(\/|$)/, /^\/api\/signing\//];
 
 /**
  * Adds `Authorization: Bearer …` to API calls. On a 401 it refreshes the

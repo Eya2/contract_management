@@ -127,6 +127,9 @@ enum AuditAction {
   AUTH_LOGIN_FAILED
   AUTH_LOGOUT
   AUTH_TOKEN_REUSE_DETECTED
+  AUTH_PASSWORD_RESET_REQUESTED
+  AUTH_PASSWORD_RESET
+  AUTH_PASSWORD_CHANGED
   CONTRACT_CREATED
   CONTRACT_VIEWED
   CONTRACT_UPDATED
@@ -191,6 +194,7 @@ model User {
   department    Department     @relation("DepartmentMembers", fields: [departmentId], references: [id])
   headOf        Department?    @relation("DepartmentHead")
   refreshTokens RefreshToken[]
+  passwordResets PasswordResetToken[]
 
   ownedContracts      Contract[]             @relation("ContractOwner")
   authoredVersions    ContractVersion[]
@@ -233,6 +237,24 @@ model RefreshToken {
   @@index([userId])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+/// "Forgot password" links. Only the SHA-256 of the token is stored; a token is
+/// single-use (usedAt) and short-lived (expiresAt). Requesting a new link
+/// invalidates the previous ones.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  ipAddress String?   @map("ip_address")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // -----------------------------------------------------------------------------
@@ -680,6 +702,8 @@ model Notification {
   link       String?
   contractId String?          @map("contract_id") @db.Uuid
   readAt     DateTime?        @map("read_at")
+  /// Makes scheduled notifications exactly-once, e.g. "expiry:<contractId>:7d:<userId>".
+  dedupeKey  String?          @unique @map("dedupe_key")
   createdAt  DateTime         @default(now()) @map("created_at")
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)

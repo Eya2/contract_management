@@ -9,8 +9,8 @@ export interface NotificationMessage {
   /** Front-end route, e.g. /contracts/<id>?tab=approvals */
   link?: string;
   /**
-   * Makes the email exactly-once per recipient: the job's dedupeKey becomes
-   * `<dedupeKey>:<userId>`, so re-running the same trigger enqueues nothing new.
+   * Makes the notification and its email exactly-once per recipient: both are
+   * keyed `<dedupeKey>:<userId>`, so re-running the same trigger creates nothing new.
    */
   dedupeKey?: string;
 }
@@ -39,7 +39,9 @@ export async function notify(tx: DbClient, userIds: Iterable<string>, message: N
       body: message.body,
       link: message.link,
       contractId: message.contractId,
+      dedupeKey: message.dedupeKey ? `${message.dedupeKey}:${u.id}` : null,
     })),
+    skipDuplicates: true,
   });
   await tx.job.createMany({
     data: users.map((u) => ({

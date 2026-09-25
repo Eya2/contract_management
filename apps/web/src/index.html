@@ -6,7 +6,18 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Contract lifecycle management: drafting, approvals, e-signature and renewals.">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta name="theme-color" content="#2747dc">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="alternate icon" href="favicon.ico">
+  <script>
+    // Apply the saved theme before the first paint, so dark mode never flashes light.
+    (function () {
+      var pref = 'system';
+      try { pref = localStorage.getItem('cms-theme') || 'system'; } catch (e) {}
+      var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (dark) document.documentElement.classList.add('dark');
+    })();
+  </script>
 </head>
 <body>
   <cms-root></cms-root>

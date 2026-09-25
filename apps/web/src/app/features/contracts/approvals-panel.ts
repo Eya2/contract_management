@@ -15,36 +15,36 @@ import { StatusBadge } from '../../shared/status-badge';
   imports: [MatButtonModule, MatIconModule, StatusBadge],
   template: `
     @if (status() === 'DRAFT' && preview.value(); as p) {
-      <section class="mb-6 rounded-xl bg-brand-50/60 p-5 ring-1 ring-brand-100">
+      <section class="mb-6 callout tone-info !block !p-5">
         <h3 class="font-semibold text-ink">If you submit now</h3>
         @if (p.template) {
-          <p class="mb-3 text-sm text-slate-600">Policy: <span class="font-medium">{{ p.template.name }}</span></p>
+          <p class="mb-3 text-sm text-body">Policy: <span class="font-medium">{{ p.template.name }}</span></p>
           <ol class="space-y-1 text-sm">
             @for (s of p.steps; track $index) {
-              <li class="flex flex-wrap items-center gap-2" [class.text-slate-400]="!s.willRun">
-                <span class="w-16 text-xs font-semibold text-slate-400 uppercase">Stage {{ s.stage }}</span>
+              <li class="flex flex-wrap items-center gap-2" [class.text-faint]="!s.willRun">
+                <span class="w-16 text-xs font-semibold text-faint uppercase">Stage {{ s.stage }}</span>
                 <span [class.line-through]="!s.willRun">{{ s.name }}</span>
-                <span class="text-xs text-slate-500">({{ humanize(s.approverRole) }}{{ s.slaHours ? ', ' + s.slaHours + ' h SLA' : '' }})</span>
+                <span class="text-xs text-muted">({{ humanize(s.approverRole) }}{{ s.slaHours ? ', ' + s.slaHours + ' h SLA' : '' }})</span>
                 @if (!s.willRun) {
                   <span class="text-xs italic">skipped: {{ s.skipReason }}</span>
                 } @else if (s.condition) {
-                  <span class="text-xs text-slate-500">applies because {{ s.condition }}</span>
+                  <span class="text-xs text-muted">applies because {{ s.condition }}</span>
                 }
               </li>
             }
           </ol>
         } @else {
-          <p class="text-sm text-rose-700">No approval policy applies to this contract yet. Ask an admin to configure one.</p>
+          <p class="text-sm text-rose-700 dark:text-rose-300">No approval policy applies to this contract yet. Ask an admin to configure one.</p>
         }
       </section>
     }
 
     @for (r of requests.value(); track r.id; let latest = $first) {
-      <section class="mb-6 rounded-xl bg-white shadow-sm ring-1 ring-slate-200" [class.opacity-80]="!latest">
-        <header class="flex flex-wrap items-center gap-3 border-b border-slate-100 px-5 py-3">
+      <section class="mb-6 card" [class.opacity-80]="!latest">
+        <header class="flex flex-wrap items-center gap-3 border-b border-line-soft px-5 py-3">
           <h3 class="font-semibold text-ink">Review of version {{ r.contractVersion.versionNumber }}</h3>
           <cms-status [status]="r.status" />
-          <span class="ml-auto text-xs text-slate-500">
+          <span class="ml-auto text-xs text-muted">
             Submitted by {{ fullName(r.submittedBy) }} · {{ dateTime(r.submittedAt) }}{{ r.workflowTemplate ? ' · ' + r.workflowTemplate.name : '' }}
           </span>
         </header>
@@ -52,48 +52,48 @@ import { StatusBadge } from '../../shared/status-badge';
           @for (s of r.steps; track s.id; let last = $last) {
             <li class="relative flex gap-4 pb-5" [class.pb-0]="last">
               @if (!last) {
-                <span class="absolute top-8 left-[15px] h-full w-px bg-slate-200"></span>
+                <span class="absolute top-8 left-[15px] h-full w-px bg-line"></span>
               }
               <span class="z-10 flex size-8 shrink-0 items-center justify-center rounded-full text-white" [class]="dot(s)">
                 <mat-icon class="!size-4 !text-[16px]">{{ icon(s) }}</mat-icon>
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-xs font-semibold text-slate-400 uppercase">Stage {{ s.stage }}</span>
+                  <span class="text-xs font-semibold text-faint uppercase">Stage {{ s.stage }}</span>
                   <span class="font-medium text-ink">{{ s.name }}</span>
                   <cms-status [status]="s.status" />
                   @if (s.escalationLevel > 0) {
-                    <span class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700">Escalated ×{{ s.escalationLevel }}</span>
+                    <span class="rounded-md bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-400/15 dark:text-orange-300">Escalated ×{{ s.escalationLevel }}</span>
                   }
                 </div>
-                <p class="mt-0.5 text-sm text-slate-500">
+                <p class="mt-0.5 text-sm text-muted">
                   {{ s.assignee ? 'Assigned to ' + fullName(s.assignee) : humanize(s.approverRole) + (s.approverDepartment ? ' of ' + s.approverDepartment.name : ', any') }}
                   @if (s.status === 'PENDING' && s.dueAt) {
                     · due {{ dateTime(s.dueAt) }}
                   }
                 </p>
                 @if (s.routingNote) {
-                  <p class="mt-1 text-xs text-slate-500 italic">{{ s.routingNote }}</p>
+                  <p class="mt-1 text-xs text-muted italic">{{ s.routingNote }}</p>
                 }
                 @if (s.skipReason) {
-                  <p class="mt-1 text-xs text-slate-500">Skipped: {{ s.skipReason }}</p>
+                  <p class="mt-1 text-xs text-muted">Skipped: {{ s.skipReason }}</p>
                 }
                 @if (s.decidedBy) {
                   <p class="mt-1 text-sm">
                     <span class="font-medium">{{ fullName(s.decidedBy) }}</span>
-                    <span class="text-slate-500"> {{ s.status === 'APPROVED' ? 'approved' : 'rejected' }} · {{ dateTime(s.decidedAt) }}</span>
+                    <span class="text-muted"> {{ s.status === 'APPROVED' ? 'approved' : 'rejected' }} · {{ dateTime(s.decidedAt) }}</span>
                   </p>
                   @if (s.comment) {
-                    <blockquote class="mt-1 border-l-2 border-slate-200 pl-3 text-sm text-slate-600">{{ s.comment }}</blockquote>
+                    <blockquote class="mt-1 border-l-2 border-line pl-3 text-sm text-body">{{ s.comment }}</blockquote>
                   }
                 }
                 @for (e of s.escalations; track $index) {
-                  <p class="mt-1 text-xs text-orange-700">Escalated to {{ fullName(e.escalatedTo) }} (level {{ e.level }}) · {{ dateTime(e.createdAt) }}</p>
+                  <p class="mt-1 text-xs text-orange-700 dark:text-orange-300">Escalated to {{ fullName(e.escalatedTo) }} (level {{ e.level }}) · {{ dateTime(e.createdAt) }}</p>
                 }
                 @if (s.canDecide) {
                   <div class="mt-3 flex gap-2">
                     <button mat-flat-button (click)="approve(s)"><mat-icon>check</mat-icon>Approve</button>
-                    <button mat-stroked-button class="!text-rose-700" (click)="reject(s)"><mat-icon>close</mat-icon>Reject</button>
+                    <button mat-stroked-button class="!text-rose-600 dark:!text-rose-400" (click)="reject(s)"><mat-icon>close</mat-icon>Reject</button>
                   </div>
                 }
               </div>
@@ -103,7 +103,7 @@ import { StatusBadge } from '../../shared/status-badge';
       </section>
     } @empty {
       @if (status() !== 'DRAFT') {
-        <p class="py-10 text-center text-sm text-slate-500">This contract has not been through approval.</p>
+        <p class="py-10 text-center text-sm text-muted">This contract has not been through approval.</p>
       }
     }
   `,
@@ -138,9 +138,9 @@ export class ApprovalsPanel {
       APPROVED: 'bg-emerald-500',
       REJECTED: 'bg-rose-500',
       PENDING: 'bg-amber-500',
-      WAITING: 'bg-slate-300',
-      SKIPPED: 'bg-slate-300',
-      CANCELLED: 'bg-slate-300',
+      WAITING: 'bg-subtle-strong',
+      SKIPPED: 'bg-subtle-strong',
+      CANCELLED: 'bg-subtle-strong',
     }[s.status];
   }
 

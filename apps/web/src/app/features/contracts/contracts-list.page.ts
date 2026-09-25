@@ -1,105 +1,164 @@
 import { Component, computed, inject, input, linkedSignal, resource } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, type PageEvent } from '@angular/material/paginator';
-import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import { ContractStatus, ContractType } from '@cms/shared';
+import { ContractType } from '@cms/shared';
 import { Api } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { Avatar } from '../../shared/avatar';
+import { EmptyState } from '../../shared/empty-state';
 import { date, fullName, humanize, money } from '../../shared/format';
+import { PageHeader } from '../../shared/page-header';
+import { Skeleton } from '../../shared/skeleton';
 import { StatusBadge } from '../../shared/status-badge';
+
+/** Quick views over the lifecycle; each is just a status filter. */
+const VIEWS = [
+  { label: 'All', status: '' },
+  { label: 'Drafts', status: 'DRAFT,REJECTED' },
+  { label: 'In review', status: 'SUBMITTED,UNDER_REVIEW' },
+  { label: 'Approved', status: 'APPROVED,SIGNED' },
+  { label: 'Active', status: 'ACTIVE' },
+  { label: 'Ended', status: 'EXPIRED,RENEWED,TERMINATED' },
+];
+
+export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT: 'handshake', NDA: 'shield_lock', EMPLOYMENT: 'badge' };
 
 /** Filters live in the URL (?q=&status=&type=&sort=&order=&page=), so every view is linkable. */
 @Component({
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatPaginatorModule, StatusBadge],
+  imports: [FormsModule, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatPaginatorModule, StatusBadge, PageHeader, Avatar, Skeleton, EmptyState],
   template: `
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-ink">Contracts</h1>
-        <p class="text-sm text-muted">{{ list.value()?.total ?? '…' }} contracts you can see</p>
-      </div>
+    <cms-page-header title="Contracts" [subtitle]="(list.value()?.total ?? '…') + ' contracts you can see'">
+      <button mat-stroked-button (click)="exportCsv()" [disabled]="!list.value()?.total"><mat-icon>download</mat-icon>Export CSV</button>
       @if (auth.can('contract.create')) {
         <a mat-flat-button routerLink="/contracts/new"><mat-icon>add</mat-icon>New contract</a>
       }
-    </div>
+    </cms-page-header>
 
     <div class="mb-4 flex flex-wrap items-center gap-3">
-      <mat-form-field subscriptSizing="dynamic" class="w-full sm:w-72">
-        <mat-icon matPrefix>search</mat-icon>
-        <mat-label>Search title, reference, counterparty</mat-label>
-        <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" (keyup.enter)="apply({ q: search() })" (blur)="apply({ q: search() })" />
-      </mat-form-field>
-      <mat-form-field subscriptSizing="dynamic" class="w-full sm:w-56">
-        <mat-label>Status</mat-label>
-        <mat-select multiple [ngModel]="statuses()" (ngModelChange)="apply({ status: $event.join(',') })">
-          @for (s of allStatuses; track s) {
-            <mat-option [value]="s">{{ humanize(s) }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field subscriptSizing="dynamic" class="w-full sm:w-44">
-        <mat-label>Type</mat-label>
-        <mat-select multiple [ngModel]="types()" (ngModelChange)="apply({ type: $event.join(',') })">
-          @for (t of allTypes; track t) {
-            <mat-option [value]="t">{{ humanize(t) }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      <div class="flex gap-1 overflow-x-auto rounded-xl bg-subtle p-1" role="tablist">
+        @for (v of views; track v.label) {
+          <button
+            role="tab"
+            [attr.aria-selected]="(status() ?? '') === v.status"
+            class="rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-muted transition-all hover:text-ink"
+            [class]="(status() ?? '') === v.status ? '!bg-card !text-ink shadow-sm ring-1 ring-line' : ''"
+            (click)="apply({ status: v.status })"
+          >
+            {{ v.label }}
+          </button>
+        }
+      </div>
+      <div class="relative min-w-56 flex-1 sm:max-w-xs">
+        <mat-icon class="pointer-events-none absolute top-1/2 left-3 !size-5 -translate-y-1/2 !text-[20px] text-faint">search</mat-icon>
+        <input
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+          (keyup.enter)="apply({ q: search() })"
+          (blur)="apply({ q: search() })"
+          placeholder="Filter by title, reference…"
+          aria-label="Filter contracts"
+          class="h-9 w-full rounded-xl bg-card pr-3 pl-10 text-sm text-ink ring-1 ring-line outline-none placeholder:text-faint focus:ring-2 focus:ring-[var(--accent)]"
+        />
+      </div>
+      <button mat-stroked-button [matMenuTriggerFor]="typeMenu">
+        <mat-icon>category</mat-icon>{{ types().length ? humanize(types()[0]!) + (types().length > 1 ? ' +' + (types().length - 1) : '') : 'All types' }}
+      </button>
+      <mat-menu #typeMenu="matMenu">
+        <button mat-menu-item (click)="apply({ type: '' })">All types</button>
+        @for (t of allTypes; track t) {
+          <button mat-menu-item (click)="apply({ type: t })"><mat-icon>{{ typeIcon[t] }}</mat-icon>{{ humanize(t) }}</button>
+        }
+      </mat-menu>
       @if (q() || status() || type()) {
-        <button mat-button (click)="clear()"><mat-icon>close</mat-icon>Clear filters</button>
+        <button mat-button (click)="clear()"><mat-icon>filter_alt_off</mat-icon>Clear</button>
       }
     </div>
 
-    <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b border-slate-200 bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-            <tr>
-              @for (col of columns; track col.key) {
-                <th class="px-4 py-3 whitespace-nowrap" [class.text-right]="col.key === 'value'">
-                  @if (col.sortable) {
-                    <button class="inline-flex items-center gap-1 uppercase hover:text-ink" (click)="sortBy(col.key)">
-                      {{ col.label }}
-                      @if (sort() === col.key) {
-                        <mat-icon class="!size-4 !text-[16px]">{{ order() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-                      }
-                    </button>
-                  } @else {
-                    {{ col.label }}
-                  }
-                </th>
-              }
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            @for (c of list.value()?.items; track c.id) {
-              <tr class="cursor-pointer hover:bg-slate-50" [routerLink]="['/contracts', c.id]">
-                <td class="min-w-56 px-4 py-3">
-                  <a [routerLink]="['/contracts', c.id]" class="font-medium text-ink hover:text-brand-700">{{ c.title }}</a>
-                  <p class="text-xs text-slate-500">{{ c.referenceNumber }} · v{{ c.currentVersionNumber }}</p>
-                </td>
-                <td class="px-4 py-3 text-slate-700">{{ c.counterparty.name }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ humanize(c.type) }}</td>
-                <td class="px-4 py-3 text-right text-slate-700 tabular-nums">{{ money(c.value, c.currency) }}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-slate-600">{{ date(c.endDate) }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ fullName(c.owner) }}<p class="text-xs text-slate-400">{{ c.department.name }}</p></td>
-                <td class="px-4 py-3"><cms-status [status]="c.status" /></td>
-              </tr>
-            } @empty {
+    <div class="card overflow-hidden">
+      @if (list.isLoading() && !list.value()) {
+        <cms-skeleton [rows]="6" />
+      } @else if (!list.value()?.items?.length) {
+        <cms-empty icon="search_off" [title]="list.error() ? 'Could not load contracts' : 'No contracts match'" text="Try another view or clear the filters.">
+          @if (q() || status() || type()) {
+            <button mat-stroked-button (click)="clear()">Clear filters</button>
+          }
+        </cms-empty>
+      } @else {
+        <!-- Table on larger screens -->
+        <div class="hidden overflow-x-auto md:block">
+          <table class="w-full text-left text-sm">
+            <thead class="border-b border-line bg-subtle/60 text-xs font-medium text-muted">
               <tr>
-                <td colspan="7" class="px-4 py-12 text-center text-slate-500">
-                  {{ list.isLoading() ? 'Loading…' : list.error() ? 'Could not load contracts.' : 'No contracts match these filters.' }}
-                </td>
+                @for (col of columns; track col.key) {
+                  <th class="px-4 py-3 font-medium whitespace-nowrap first:pl-5" [class.text-right]="col.key === 'value'">
+                    @if (col.sortable) {
+                      <button class="inline-flex items-center gap-1 hover:text-ink" (click)="sortBy(col.key)">
+                        {{ col.label }}
+                        <mat-icon class="!size-4 !text-[16px] transition-transform" [class.opacity-0]="sort() !== col.key" [class.rotate-180]="order() === 'asc'">arrow_downward</mat-icon>
+                      </button>
+                    } @else {
+                      {{ col.label }}
+                    }
+                  </th>
+                }
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody class="divide-y divide-line-soft">
+              @for (c of list.value()!.items; track c.id; let i = $index) {
+                <tr class="stagger group cursor-pointer transition-colors hover:bg-subtle/70" [style.--i]="i" [routerLink]="['/contracts', c.id]">
+                  <td class="min-w-64 py-3 pr-4 pl-5">
+                    <div class="flex items-center gap-3">
+                      <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-subtle text-muted transition-colors group-hover:bg-accent-soft group-hover:text-accent-ink">
+                        <mat-icon class="!size-5 !text-[20px]">{{ typeIcon[c.type] }}</mat-icon>
+                      </span>
+                      <div class="min-w-0">
+                        <a [routerLink]="['/contracts', c.id]" class="block truncate font-medium text-ink">{{ c.title }}</a>
+                        <p class="text-xs text-muted">{{ c.referenceNumber }} · v{{ c.currentVersionNumber }} · {{ humanize(c.type) }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-body">{{ c.counterparty.name }}</td>
+                  <td class="px-4 py-3 text-right font-medium text-ink tabular-nums">{{ money(c.value, c.currency) }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-body">
+                    {{ date(c.endDate) }}
+                    @if (c.autoRenew) {
+                      <mat-icon class="!size-4 align-middle !text-[16px] text-faint" title="Renews automatically">autorenew</mat-icon>
+                    }
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <cms-avatar [name]="fullName(c.owner)" [size]="26" />
+                      <span class="leading-tight"><span class="block text-body">{{ fullName(c.owner) }}</span><span class="text-xs text-muted">{{ c.department.name }}</span></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3"><cms-status [status]="c.status" /></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <!-- Cards on phones -->
+        <ul class="divide-y divide-line-soft md:hidden">
+          @for (c of list.value()!.items; track c.id; let i = $index) {
+            <li class="stagger" [style.--i]="i">
+              <a [routerLink]="['/contracts', c.id]" class="flex items-start gap-3 p-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-subtle text-muted"><mat-icon>{{ typeIcon[c.type] }}</mat-icon></span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate font-medium text-ink">{{ c.title }}</p>
+                  <p class="truncate text-xs text-muted">{{ c.counterparty.name }} · {{ money(c.value, c.currency) }}</p>
+                  <div class="mt-2"><cms-status [status]="c.status" /></div>
+                </div>
+              </a>
+            </li>
+          }
+        </ul>
+      }
       <mat-paginator
+        class="border-t border-line-soft !bg-transparent"
         [length]="list.value()?.total ?? 0"
         [pageIndex]="pageNumber() - 1"
         [pageSize]="20"
@@ -140,12 +199,12 @@ export class ContractsListPage {
     loader: ({ params }) => this.api.contracts(params),
   });
 
-  protected readonly allStatuses = Object.values(ContractStatus);
+  protected readonly views = VIEWS;
   protected readonly allTypes = Object.values(ContractType);
+  protected readonly typeIcon = TYPE_ICON;
   protected readonly columns = [
     { key: 'title', label: 'Contract', sortable: true },
     { key: 'counterparty', label: 'Counterparty', sortable: false },
-    { key: 'type', label: 'Type', sortable: false },
     { key: 'value', label: 'Value', sortable: true },
     { key: 'endDate', label: 'Ends', sortable: true },
     { key: 'owner', label: 'Owner', sortable: false },
@@ -170,6 +229,11 @@ export class ContractsListPage {
 
   protected onPage(e: PageEvent) {
     this.apply({ page: e.pageIndex + 1 });
+  }
+
+  /** Downloads the current view (same filters and sort), not just the visible page. */
+  protected exportCsv() {
+    void this.api.exportContracts({ q: this.q(), status: this.statuses(), type: this.types(), sort: this.sort() ?? 'updatedAt', order: this.order() ?? 'desc' });
   }
 
   protected clear() {

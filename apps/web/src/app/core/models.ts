@@ -98,8 +98,17 @@ export interface Attachment {
   file: StoredFile & { uploadedBy: UserSummary };
 }
 
+export interface ContractLink {
+  id: string;
+  referenceNumber: string;
+  title: string;
+  status: ContractStatus;
+}
+
 export interface ContractDetail extends ContractSummary {
   activatedAt: string | null;
+  renewalOf: ContractLink | null;
+  renewedBy: ContractLink | null;
   terminatedAt: string | null;
   attachments: Attachment[];
   currentVersion: VersionDetail;
@@ -249,6 +258,7 @@ export interface AuditEntry {
   action: string;
   entityType: string;
   entityId: string | null;
+  contractId: string | null;
   ipAddress: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
@@ -272,4 +282,63 @@ export interface Dashboard {
 /** The API's error envelope. */
 export interface ApiError {
   error: { code: string; message: string; details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };
+}
+
+export interface AdminUser extends UserSummary {
+  role: Role;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  department: Department;
+  headOf: { id: string; name: string } | null;
+}
+
+export interface DepartmentOverview extends Department {
+  head: { id: string; firstName: string; lastName: string } | null;
+  _count: { members: number; contracts: number };
+}
+
+export type ConditionLeaf = { field: string; op: string; value: unknown };
+export type Condition = ConditionLeaf | { all: Condition[] } | { any: Condition[] } | { not: Condition };
+
+export interface PolicyStep {
+  id?: string;
+  stage: number;
+  name: string;
+  approverRole: Role;
+  approverScope: 'ANY' | 'CONTRACT_DEPARTMENT';
+  condition: Condition | null;
+  conditionText?: string | null;
+  escalateAfterHours: number | null;
+}
+
+export interface Policy {
+  id: string;
+  name: string;
+  description: string | null;
+  contractType: ContractType | null;
+  departmentId: string | null;
+  department: Department | null;
+  isActive: boolean;
+  updatedAt: string;
+  steps: PolicyStep[];
+}
+
+export interface EmailJob {
+  id: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  attempts: number;
+  maxAttempts: number;
+  lastError: string | null;
+  runAt: string;
+  createdAt: string;
+  completedAt: string | null;
+  to: string | null;
+  subject: string | null;
+}
+
+export interface EmailStatus {
+  smtp: { host: string; port: number; authenticated: boolean };
+  counts: Partial<Record<EmailJob['status'], number>>;
+  items: EmailJob[];
 }

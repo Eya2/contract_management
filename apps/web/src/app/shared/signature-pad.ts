@@ -10,7 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
   selector: 'cms-signature-pad',
   imports: [MatButtonModule],
   template: `
-    <div class="relative rounded-lg border-2 border-dashed border-slate-300 bg-white">
+    <div class="relative rounded-lg border-2 border-dashed border-line bg-card">
       <canvas
         #canvas
         class="block h-40 w-full cursor-crosshair touch-none"
@@ -21,9 +21,9 @@ import { MatButtonModule } from '@angular/material/button';
         (pointerleave)="end()"
       ></canvas>
       @if (empty()) {
-        <span class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">Sign here</span>
+        <span class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-faint">Sign here</span>
       }
-      <div class="pointer-events-none absolute right-6 bottom-8 left-6 border-b border-slate-300"></div>
+      <div class="pointer-events-none absolute right-6 bottom-8 left-6 border-b border-line"></div>
     </div>
     <button mat-button type="button" class="mt-1" (click)="clear()" [disabled]="empty()">Clear</button>
   `,

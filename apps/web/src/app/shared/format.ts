@@ -43,3 +43,11 @@ export function fileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+/** Whole days from today (UTC) to a date-only ISO value; negative once passed. */
+export function daysUntil(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((new Date(iso).getTime() - today) / 86_400_000);
+}

@@ -28,13 +28,13 @@ import { SignaturePad } from '../../shared/signature-pad';
         <input matInput [ngModel]="typedName()" (ngModelChange)="typedName.set($event)" autocomplete="name" />
       </mat-form-field>
       @if (typedName().trim()) {
-        <p class="mb-4 border-b border-slate-300 pb-1 text-3xl text-ink" style="font-family: 'Brush Script MT', 'Segoe Script', cursive">{{ typedName() }}</p>
+        <p class="mb-4 border-b border-line pb-1 text-3xl text-ink" style="font-family: 'Brush Script MT', 'Segoe Script', cursive">{{ typedName() }}</p>
       }
     } @else {
       <cms-signature-pad (changed)="image.set($event)" />
     }
 
-    <p class="mt-3 rounded-md bg-slate-50 p-2 font-mono text-[11px] break-all text-slate-500" title="SHA-256 of the contract content">
+    <p class="mt-3 rounded-md bg-subtle p-2 font-mono text-[11px] break-all text-muted" title="SHA-256 of the contract content">
       Content fingerprint: {{ contentHash() }}
     </p>
     <mat-checkbox class="mt-3 block" [checked]="consent()" (change)="consent.set($event.checked)">

@@ -1,21 +1,231 @@
 /*
- * Tailwind handles layout, spacing and typography utilities; Angular Material
- * provides the interactive components (table, datepicker, dialog, menu…).
- * Tailwind's layers have lower precedence than Material's unlayered styles, so
- * the two don't fight. Kept in a plain .css file as Tailwind v4 requires.
+ * Contract Hub design system: "Ink & Seal".
+ *
+ *  - Ink (royal blue) is the brand: trust, precision, the ink a contract is signed with.
+ *  - Seal (warm amber) is the accent, used sparingly, like a wax seal.
+ *  - Semantic tokens (canvas, card, line, ink, muted…) switch between light and
+ *    dark mode, so templates say `bg-card text-ink` and never mention a mode.
+ *
+ * Tailwind handles layout and styling; Angular Material provides interactive
+ * components, themed from the same palette in styles.scss.
  */
-@import "tailwindcss";
+/* `important`: Angular Material's component styles are unlayered, so they beat
+ * Tailwind's layered utilities (e.g. `text-emerald-600` on a <mat-icon> lost to
+ * Material's icon color). Utilities only apply where a class is written, so
+ * making them win is safe and keeps templates free of `!` prefixes. */
+@import "tailwindcss" important;
+
+/* Dark mode follows a class on <html>, set by ThemeService (light / dark / system). */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 
-  /* Brand + contract status palette (mirrored in the Material theme). */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-500: #4f46e5;
-  --color-brand-600: #4338ca;
-  --color-brand-700: #3730a3;
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
-  --color-surface: #f8fafc;
+  /* Ink: the brand scale. */
+  --color-brand-50: #eef3ff;
+  --color-brand-100: #dce6ff;
+  --color-brand-200: #bfd1ff;
+  --color-brand-300: #93b1fd;
+  --color-brand-400: #6189f8;
+  --color-brand-500: #3d63f0;
+  --color-brand-600: #2747dc;
+  --color-brand-700: #1f37b4;
+  --color-brand-800: #1e308f;
+  --color-brand-900: #1c2c70;
+  --color-brand-950: #121a42;
+
+  /* Seal: the accent. */
+  --color-seal-300: #fcd48a;
+  --color-seal-400: #f8b84e;
+  --color-seal-500: #ec9a1c;
+  --color-seal-600: #c97a0d;
+
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-rise: rise 0.45s var(--ease-spring) both;
+  --animate-fade: fade 0.3s ease-out both;
+  --animate-pop: pop 0.35s var(--ease-spring) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pop {
+    0% { opacity: 0; transform: scale(0.92); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+  }
+}
+
+/* Semantic tokens, resolved per mode (utilities: bg-canvas, bg-card, text-ink, ring-line…). */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-card: var(--card);
+  --color-raised: var(--raised);
+  --color-subtle: var(--subtle);
+  --color-subtle-strong: var(--subtle-strong);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-body: var(--body);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+}
+
+:root {
+  --canvas: #f6f7fb;
+  --card: #ffffff;
+  --raised: #ffffff;
+  --subtle: #f1f3f9;
+  --subtle-strong: #e6e9f2;
+  --line: #e2e6ef;
+  --line-soft: #eef0f6;
+  --ink: #0e1630;
+  --body: #333c55;
+  --muted: #667089;
+  --faint: #98a0b5;
+  --accent: var(--color-brand-600);
+  --accent-soft: var(--color-brand-50);
+  --accent-ink: var(--color-brand-700);
+  --shadow-color: 222 47% 11%;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #080c1a;
+  --card: #0f1528;
+  --raised: #151c33;
+  --subtle: #141b31;
+  --subtle-strong: #1c2440;
+  --line: #222b47;
+  --line-soft: #1a2139;
+  --ink: #eef1fb;
+  --body: #c7cde0;
+  --muted: #8d96b3;
+  --faint: #5f6884;
+  --accent: var(--color-brand-400);
+  --accent-soft: color-mix(in oklab, var(--color-brand-500) 16%, transparent);
+  --accent-ink: var(--color-brand-300);
+  --shadow-color: 230 60% 2%;
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "cv11", "ss01", "ss03";
+  }
+  body {
+    @apply bg-canvas text-body;
+  }
+  h1, h2, h3 {
+    @apply text-ink tracking-tight;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-brand-500) 30%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* A card: the basic surface. */
+@utility card {
+  background: var(--card);
+  border-radius: 1rem;
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 1px 2px hsl(var(--shadow-color) / 0.04),
+    0 4px 12px -4px hsl(var(--shadow-color) / 0.06);
+}
+
+/* Cards that are links: lift slightly on hover. */
+@utility card-interactive {
+  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s ease;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--accent) 45%, var(--line)),
+      0 12px 28px -12px hsl(var(--shadow-color) / 0.25);
+  }
+}
+
+/* An overdue approval: an orange outline instead of the card hairline. */
+@utility overdue {
+  box-shadow: 0 0 0 1.5px #fb923c, 0 8px 24px -12px rgb(251 146 60 / 0.4);
+}
+
+/* Staggered entrance: set style="--i: n" on list items. */
+@utility stagger {
+  animation: var(--animate-rise);
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* Loading placeholder. */
+@utility skeleton {
+  border-radius: 0.5rem;
+  background: linear-gradient(90deg, var(--subtle) 25%, var(--subtle-strong) 37%, var(--subtle) 63%);
+  background-size: 400% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* Callouts. */
+@utility callout {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  border-radius: 0.875rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  box-shadow: inset 0 0 0 1px var(--tone-ring);
+  background: var(--tone-bg);
+  color: var(--tone-fg);
+}
+@utility tone-danger {
+  --tone-bg: #fff1f2; --tone-fg: #9f1239; --tone-ring: #fecdd3;
+  .dark & { --tone-bg: rgb(244 63 94 / 0.1); --tone-fg: #fda4af; --tone-ring: rgb(244 63 94 / 0.25); }
+}
+@utility tone-warning {
+  --tone-bg: #fffbeb; --tone-fg: #92400e; --tone-ring: #fde68a;
+  .dark & { --tone-bg: rgb(245 158 11 / 0.1); --tone-fg: #fcd34d; --tone-ring: rgb(245 158 11 / 0.25); }
+}
+@utility tone-success {
+  --tone-bg: #ecfdf5; --tone-fg: #065f46; --tone-ring: #a7f3d0;
+  .dark & { --tone-bg: rgb(16 185 129 / 0.1); --tone-fg: #6ee7b7; --tone-ring: rgb(16 185 129 / 0.25); }
+}
+@utility tone-info {
+  --tone-bg: var(--accent-soft); --tone-fg: var(--accent-ink); --tone-ring: color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+/* Page transitions (router view transitions). */
+::view-transition-old(root) {
+  animation: 0.16s ease-in both fade reverse;
+}
+::view-transition-new(root) {
+  animation: 0.32s var(--ease-spring) both rise;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

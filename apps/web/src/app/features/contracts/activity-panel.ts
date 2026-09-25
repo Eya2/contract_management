@@ -10,7 +10,7 @@ import { StatusBadge } from '../../shared/status-badge';
   imports: [StatusBadge],
   template: `
     <div class="grid gap-6 lg:grid-cols-2">
-      <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <section class="card p-5">
         <h3 class="mb-4 font-semibold">Status timeline</h3>
         <ol class="space-y-4">
           @for (t of timeline.value(); track t.id) {
@@ -23,9 +23,9 @@ import { StatusBadge } from '../../shared/status-badge';
                   }
                   <cms-status [status]="t.toStatus" />
                 </p>
-                <p class="mt-1 text-xs text-slate-500">{{ fullName(t.actor) }} · {{ dateTime(t.createdAt) }}</p>
+                <p class="mt-1 text-xs text-muted">{{ fullName(t.actor) }} · {{ dateTime(t.createdAt) }}</p>
                 @if (t.reason) {
-                  <p class="mt-1 text-slate-600">{{ t.reason }}</p>
+                  <p class="mt-1 text-body">{{ t.reason }}</p>
                 }
               </div>
             </li>
@@ -34,13 +34,13 @@ import { StatusBadge } from '../../shared/status-badge';
       </section>
 
       @if (canAudit) {
-        <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h3 class="mb-4 font-semibold">Audit trail <span class="text-xs font-normal text-slate-500">(append-only)</span></h3>
-          <ul class="divide-y divide-slate-100 text-sm">
+        <section class="card p-5">
+          <h3 class="mb-4 font-semibold">Audit trail <span class="text-xs font-normal text-muted">(append-only)</span></h3>
+          <ul class="divide-y divide-line-soft text-sm">
             @for (e of audit.value()?.items; track e.id) {
               <li class="py-2">
-                <p><span class="font-medium">{{ humanize(e.action) }}</span><span class="text-slate-500">&nbsp;by {{ fullName(e.user) }}</span></p>
-                <p class="text-xs text-slate-500">{{ dateTime(e.createdAt) }}{{ e.ipAddress ? ' · ' + e.ipAddress : '' }}</p>
+                <p><span class="font-medium">{{ humanize(e.action) }}</span><span class="text-muted">&nbsp;by {{ fullName(e.user) }}</span></p>
+                <p class="text-xs text-muted">{{ dateTime(e.createdAt) }}{{ e.ipAddress ? ' · ' + e.ipAddress : '' }}</p>
               </li>
             }
           </ul>

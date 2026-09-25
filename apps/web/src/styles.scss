@@ -1,13 +1,15 @@
 @use '@angular/material' as mat;
 
-// Material 3 theme: blue primary, Inter typography, compact density for a
-// data-heavy business app (tables, forms) without feeling cramped.
+// Angular Material (Material 3), aligned with the "Ink & Seal" tokens in
+// tailwind.css. `theme-type: color-scheme` makes every Material color a
+// light-dark() pair, so the `color-scheme` set by the .dark class on <html>
+// switches Material along with Tailwind.
 html {
-  color-scheme: light;
   @include mat.theme((
     color: (
       primary: mat.$blue-palette,
-      tertiary: mat.$violet-palette,
+      tertiary: mat.$orange-palette,
+      theme-type: color-scheme,
     ),
     typography: (
       plain-family: 'Inter Variable, ui-sans-serif, system-ui, sans-serif',
@@ -15,6 +17,33 @@ html {
     ),
     density: -1,
   ));
+
+  // Brand colors and surfaces from the design tokens.
+  --mat-sys-primary: light-dark(#2747dc, #93b1fd);
+  --mat-sys-on-primary: light-dark(#ffffff, #0b1640);
+  --mat-sys-primary-container: light-dark(#dce6ff, #1e308f);
+  --mat-sys-on-primary-container: light-dark(#121a42, #dce6ff);
+  --mat-sys-surface: var(--card);
+  --mat-sys-surface-container-lowest: var(--card);
+  --mat-sys-surface-container-low: var(--card);
+  --mat-sys-surface-container: var(--raised);
+  --mat-sys-surface-container-high: var(--raised);
+  --mat-sys-surface-container-highest: var(--subtle);
+  --mat-sys-on-surface: var(--ink);
+  --mat-sys-on-surface-variant: var(--muted);
+  --mat-sys-outline: light-dark(#b4bccf, #3a4566);
+  --mat-sys-outline-variant: var(--line);
+
+  // Softer, more modern shapes than Material's defaults.
+  --mat-button-filled-container-shape: 10px;
+  --mat-button-outlined-container-shape: 10px;
+  --mat-button-text-container-shape: 10px;
+  --mat-button-protected-container-shape: 10px;
+  --mat-button-tonal-container-shape: 10px;
+  --mat-form-field-outlined-container-shape: 10px;
+  --mat-dialog-container-shape: 18px;
+  --mat-menu-container-shape: 14px;
+  --mat-snack-bar-container-shape: 12px;
 }
 
 html,
@@ -24,22 +53,42 @@ body {
 
 body {
   margin: 0;
-  background: var(--color-surface, #f8fafc);
-  color: var(--color-ink, #0f172a);
   font-family: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
 }
 
-// Destructive dialog buttons and error toasts.
+// Dialogs and menus: a hairline border and a deeper shadow read better than
+// Material's tonal elevation, especially on the dark canvas.
+.mat-mdc-dialog-surface,
+.mat-mdc-menu-panel {
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 24px 48px -16px hsl(var(--shadow-color) / 0.35) !important;
+}
+.cdk-overlay-dark-backdrop {
+  background: rgb(8 12 26 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+// Destructive buttons and error toasts.
 .mat-mdc-unelevated-button.danger:not(:disabled) {
-  --mat-button-filled-container-color: #be123c;
+  --mat-button-filled-container-color: #e11d48;
+  --mat-button-filled-label-text-color: #fff;
 }
 .toast-error {
   --mat-snack-bar-container-color: #9f1239;
+  --mat-snack-bar-supporting-text-color: #fff1f2;
   --mat-snack-bar-button-color: #fecdd3;
 }
 
-// The notification menu needs more room than Material's default 280px menu width.
-.mat-mdc-menu-panel.notification-menu {
+// The notification menu needs more room than Material's default 280px width.
+.mat-mdc-menu-panel.wide-menu {
   max-width: min(26rem, calc(100vw - 2rem));
+}
+
+// Material Symbols: slightly lighter strokes suit the Inter typography.
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.icon-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }

@@ -13,6 +13,7 @@ import { contractRepository } from '../contracts/contract.repository.js';
 import { findVisibleOrThrow } from '../contracts/contract.service.js';
 import { fileService, storedFileSelect } from '../files/file.service.js';
 import { contractLink, notify } from '../notifications/notification.service.js';
+import { settlePredecessor } from '../renewals/renewal.service.js';
 import type { SignBody, SignersBody } from './signing.schemas.js';
 
 /**
@@ -350,6 +351,7 @@ async function sign(signer: ContractSigner, body: SignBody, actorUserId: string 
           reason: 'All parties signed',
           data: startsLater ? undefined : { activatedAt: now },
         });
+        await settlePredecessor(tx, contract, actorUserId);
         if (!startsLater) {
           await recordAudit({ action: 'CONTRACT_ACTIVATED', entityType: 'contract', entityId: contract.id, contractId: contract.id, userId: actorUserId }, tx);
         }

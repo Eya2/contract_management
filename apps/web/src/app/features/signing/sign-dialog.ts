@@ -19,9 +19,9 @@ export interface SignDialogData {
   template: `
     <h2 mat-dialog-title>Sign “{{ data.title }}”</h2>
     <mat-dialog-content>
-      <p class="mb-4 text-sm text-slate-600">You are signing version {{ data.versionNumber }}, the version that was approved.</p>
+      <p class="mb-4 text-sm text-body">You are signing version {{ data.versionNumber }}, the version that was approved.</p>
       @if (error()) {
-        <p class="mb-3 rounded-md bg-rose-50 p-2 text-sm text-rose-700" role="alert">{{ error() }}</p>
+        <p class="mb-3 callout tone-danger" role="alert">{{ error() }}</p>
       }
       <cms-sign-form [contentHash]="data.contentHash" [defaultName]="data.signerName" [busy]="busy()" (signed)="sign($event)">
         <button mat-button mat-dialog-close>Cancel</button>

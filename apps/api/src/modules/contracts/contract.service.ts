@@ -6,6 +6,7 @@ import type { Contract, Prisma } from '../../generated/prisma/client.js';
 import { prisma, type DbClient } from '../../lib/prisma.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { fileService } from '../files/file.service.js';
+import { contractLink, notify } from '../notifications/notification.service.js';
 import {
   computeContentHash,
   diffContent,
@@ -211,6 +212,48 @@ export const contractService = {
     return loadDetail(id);
   },
 
+  /**
+   * Ends a contract before its term. Allowed to admins and to managers of the
+   * contract's department (the contract.terminate permission, scoped to their
+   * department). The reason is kept on the contract and in the timeline.
+   */
+  async terminate(user: AuthUser, id: string, reason: string) {
+    const contract = await findVisibleOrThrow(user, id);
+    if (user.role !== 'ADMIN' && contract.departmentId !== user.departmentId) {
+      throw new ForbiddenError("Only an admin or a manager of the contract's department can terminate it");
+    }
+    if (!['ACTIVE', 'SIGNED'].includes(contract.status)) {
+      throw new ConflictError(`Only a signed or active contract can be terminated (this one is ${contract.status})`);
+    }
+    await prisma.$transaction(async (tx) => {
+      const now = new Date();
+      await transitionContract(tx, {
+        contractId: id,
+        from: contract.status,
+        to: 'TERMINATED',
+        actorId: user.id,
+        reason,
+        data: { terminatedAt: now, terminationReason: reason },
+      });
+      await recordAudit({ action: 'CONTRACT_TERMINATED', entityType: 'contract', entityId: id, contractId: id, metadata: { reason } }, tx);
+      if (contract.ownerId !== user.id) {
+        await notify(tx, [contract.ownerId], {
+          type: 'CONTRACT_EXPIRING',
+          title: `${contract.referenceNumber} ${contract.title} was terminated`,
+          body: `Reason: ${reason}`,
+          contractId: id,
+          link: contractLink(id),
+        });
+      }
+    });
+    return loadDetail(id);
+  },
+
+  /** The same list as `list`, unpaged (capped), for CSV export. */
+  async exportRows(user: AuthUser, query: ListContractsQuery) {
+    return (await contractRepository.list(user, { ...query, page: 1, pageSize: 5000 })).items;
+  },
+
   async listVersions(user: AuthUser, id: string) {
     await findVisibleOrThrow(user, id);
     return contractRepository.listVersions(id);
@@ -379,13 +422,13 @@ async function resolveDepartment(user: AuthUser, requested: string | undefined):
   return dept.id;
 }
 
-async function loadDetail(id: string) {
+export async function loadDetail(id: string) {
   const { approvalRequests, ...contract } = await contractRepository.findDetail(id);
   const currentVersion = await contractRepository.findVersion(id, contract.currentVersionNumber);
   return { ...contract, currentVersion, latestApprovalRequest: approvalRequests[0] ?? null };
 }
 
-function headFields(content: ContractContent) {
+export function headFields(content: ContractContent) {
   return {
     title: content.title,
     type: content.type,
@@ -397,7 +440,7 @@ function headFields(content: ContractContent) {
   };
 }
 
-async function writeVersion(
+export async function writeVersion(
   tx: DbClient,
   v: {
     contractId: string;
