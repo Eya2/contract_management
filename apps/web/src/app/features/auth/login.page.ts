@@ -1,6 +1,8 @@
 import { Component, inject, input, signal } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -22,7 +24,7 @@ const DEMO = [
 ];
 
 @Component({
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, Logo, Avatar, ThemeSwitch],
+  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, Logo, Avatar, ThemeSwitch],
   styles: `
     .sig {
       stroke-dasharray: 260;
@@ -52,21 +54,21 @@ const DEMO = [
         <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_40rem_at_20%_-10%,#3d63f055,transparent),radial-gradient(40rem_30rem_at_110%_110%,#ec9a1c33,transparent)]"></div>
         <div class="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:40px_40px]"></div>
 
-        <div class="relative"><cms-logo class="[&_span.text-ink]:!text-white" /></div>
+        <div class="relative"><cms-logo class="[&_span.text-ink]:!text-white [&_.text-accent]:!text-brand-300" /></div>
 
         <div class="relative my-auto max-w-lg">
-          <h2 class="animate-rise text-4xl leading-tight font-semibold !text-white">Agreements, approved.<br /><span class="text-brand-300">Signed. Renewed. On time.</span></h2>
+          <h2 class="animate-rise text-4xl leading-tight font-semibold !text-white">{{ 'Agreements, approved.' | t }}<br /><span class="text-brand-300">{{ 'Signed. Renewed. On time.' | t }}</span></h2>
           <p class="stagger mt-4 text-base text-brand-100/80" style="--i: 2">
-            Draft contracts, route them through the right approvers, collect legally binding e-signatures and never miss a renewal.
+            {{ 'Draft contracts, route them through the right approvers, collect legally binding e-signatures and never miss a renewal.' | t }}
           </p>
 
           <!-- A contract being signed -->
           <div class="float relative mt-10 w-80 rounded-2xl bg-white p-5 text-slate-800 shadow-2xl shadow-black/40">
             <div class="mb-3 flex items-center justify-between">
-              <span class="text-xs font-semibold tracking-wide text-slate-400">CTR-2027-00042</span>
-              <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-600/20">Approved</span>
+              <span class="text-xs font-semibold tracking-wide text-slate-400">{{ 'CTR-2027-00042' | t }}</span>
+              <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-600/20">{{ 'Approved' | t }}</span>
             </div>
-            <p class="font-semibold">Master services agreement</p>
+            <p class="font-semibold">{{ 'Master services agreement' | t }}</p>
             <div class="mt-3 space-y-1.5">
               <div class="h-1.5 w-full rounded bg-slate-100"></div>
               <div class="h-1.5 w-11/12 rounded bg-slate-100"></div>
@@ -84,8 +86,8 @@ const DEMO = [
           @for (f of features; track f.icon; let i = $index) {
             <li class="stagger" [style.--i]="i + 4">
               <mat-icon class="mb-2 text-seal-400">{{ f.icon }}</mat-icon>
-              <p class="font-medium text-white">{{ f.title }}</p>
-              <p class="text-xs">{{ f.text }}</p>
+              <p class="font-medium text-white">{{ f.title | t }}</p>
+              <p class="text-xs">{{ f.text | t }}</p>
             </li>
           }
         </ul>
@@ -98,25 +100,26 @@ const DEMO = [
           <div class="w-36"><cms-theme-switch /></div>
         </div>
         <div class="mx-auto my-auto w-full max-w-sm animate-rise py-10">
-          <h1 class="text-3xl font-semibold">Welcome back</h1>
-          <p class="mt-2 text-sm text-muted">Sign in to your workspace.</p>
+          <h1 class="text-3xl font-semibold">{{ 'Welcome back' | t }}</h1>
+          <p class="mt-2 text-sm text-muted">{{ 'Sign in to your workspace.' | t }}</p>
 
           <form class="mt-8 space-y-1" (ngSubmit)="submit()">
             <mat-form-field appearance="outline" class="w-full">
-              <mat-label>Work email</mat-label>
+              <mat-label>{{ 'Work email' | t }}</mat-label>
               <mat-icon matPrefix class="!mr-2 text-faint">mail</mat-icon>
               <input matInput type="email" name="email" autocomplete="username" [(ngModel)]="email" required />
             </mat-form-field>
             <mat-form-field appearance="outline" class="w-full">
-              <mat-label>Password</mat-label>
+              <mat-label>{{ 'Password' | t }}</mat-label>
               <mat-icon matPrefix class="!mr-2 text-faint">lock</mat-icon>
               <input matInput [type]="showPassword() ? 'text' : 'password'" name="password" autocomplete="current-password" [(ngModel)]="password" required />
-              <button mat-icon-button matSuffix type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+              <button mat-icon-button matSuffix type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="(showPassword() ? 'Hide password' : 'Show password') | t">
                 <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
             </mat-form-field>
-            <div class="-mt-2 mb-4 flex justify-end">
-              <a routerLink="/forgot-password" [queryParams]="{}" class="text-sm font-medium text-accent hover:underline">Forgot password?</a>
+            <div class="-mt-2 mb-4 flex items-center justify-between">
+              <mat-checkbox name="remember" [(ngModel)]="remember" class="-ml-2.5">{{ 'Keep me signed in' | t }}</mat-checkbox>
+              <a routerLink="/forgot-password" [queryParams]="{}" class="text-sm font-medium text-accent hover:underline">{{ 'Forgot password?' | t }}</a>
             </div>
             @if (error()) {
               <div class="callout tone-danger mb-4 animate-rise" role="alert"><mat-icon class="!size-5 !text-[20px]">error</mat-icon>{{ error() }}</div>
@@ -131,7 +134,7 @@ const DEMO = [
 
           <div class="mt-10">
             <div class="mb-3 flex items-center gap-3 text-xs text-faint">
-              <span class="h-px flex-1 bg-line"></span>Try a demo account<span class="h-px flex-1 bg-line"></span>
+              <span class="h-px flex-1 bg-line"></span>{{ 'Try a demo account' | t }}<span class="h-px flex-1 bg-line"></span>
             </div>
             <div class="grid gap-1.5">
               @for (d of demo; track d.email; let i = $index) {
@@ -143,12 +146,12 @@ const DEMO = [
                   [disabled]="busy()"
                 >
                   <cms-avatar [name]="d.name" [size]="30" />
-                  <span class="flex-1 text-sm"><span class="font-medium text-ink">{{ d.name }}</span> <span class="text-muted">· {{ d.role }}</span></span>
+                  <span class="flex-1 text-sm"><span class="font-medium text-ink">{{ d.name }}</span><span class="text-muted">&nbsp;· {{ d.role | t }}</span></span>
                   <mat-icon class="!size-4 !text-[16px] text-faint">arrow_forward</mat-icon>
                 </button>
               }
             </div>
-            <p class="mt-3 text-center text-xs text-faint">Demo password: Demo1234!</p>
+            <p class="mt-3 text-center text-xs text-faint">{{ 'Demo password: Demo1234!' | t }}</p>
           </div>
         </div>
       </section>
@@ -162,6 +165,7 @@ export class LoginPage {
   protected readonly email = signal('');
   protected readonly password = signal('');
   protected readonly showPassword = signal(false);
+  protected readonly remember = signal(true);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly demo = DEMO;
@@ -181,7 +185,7 @@ export class LoginPage {
     this.busy.set(true);
     this.error.set(null);
     try {
-      await this.auth.login(this.email(), this.password());
+      await this.auth.login(this.email(), this.password(), this.remember());
       await this.router.navigateByUrl(this.returnUrl() || '/');
     } catch (err) {
       this.error.set(errorMessage(err));

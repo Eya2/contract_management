@@ -7,14 +7,15 @@ import { authService, type AuthResult } from './auth.service.js';
 
 /** The refresh token travels only in the cookie; the body carries the access token. */
 function sendSession(res: Response, result: AuthResult) {
-  setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt);
+  // A persistent session gets a dated cookie; otherwise a session cookie that ends with the browser.
+  setRefreshCookie(res, result.refreshToken, result.persistent ? result.refreshTokenExpiresAt : undefined);
   res.json({ accessToken: result.accessToken, user: result.user });
 }
 
 export const authController = {
   async login(req: Request, res: Response) {
-    const { email, password } = LoginBody.parse(req.body);
-    sendSession(res, await authService.login(email, password));
+    const { email, password, remember } = LoginBody.parse(req.body);
+    sendSession(res, await authService.login(email, password, remember));
   },
 
   async refresh(req: Request, res: Response) {

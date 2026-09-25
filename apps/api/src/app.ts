@@ -14,6 +14,7 @@ import { contractsRouter } from './modules/contracts/contracts.routes.js';
 import { counterpartiesRouter } from './modules/counterparties/counterparties.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { departmentsRouter } from './modules/departments/departments.routes.js';
+import { contractPdfRouter, signerPdfRouter } from './modules/documents/documents.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { notificationsRouter } from './modules/notifications/notifications.routes.js';
 import { contractRenewalRouter } from './modules/renewals/renewals.routes.js';
@@ -54,7 +55,7 @@ export function createApp() {
   app.use('/api/users', usersRouter);
   app.use('/api/departments', departmentsRouter);
   app.use('/api/counterparties', counterpartiesRouter);
-  app.use('/api/contracts', contractsRouter, contractWorkflowRouter, contractSigningRouter, contractAuditRouter, contractRenewalRouter);
+  app.use('/api/contracts', contractsRouter, contractWorkflowRouter, contractSigningRouter, contractAuditRouter, contractRenewalRouter, contractPdfRouter);
   app.use('/api/approvals', approvalsRouter);
   app.use('/api/workflow-templates', workflowTemplatesRouter);
   app.use('/api/notifications', notificationsRouter);
@@ -62,7 +63,8 @@ export function createApp() {
   app.use('/api/audit', auditRouter);
   app.use('/api/admin/emails', jobsRouter);
   app.use('/api/signers', signersRouter);
-  app.use('/api/signing', publicSigningRouter);
+  // The rate limiter on publicSigningRouter also covers the PDF route after it.
+  app.use('/api/signing', publicSigningRouter, signerPdfRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

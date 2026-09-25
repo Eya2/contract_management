@@ -3,7 +3,7 @@ import { prisma } from '../../lib/prisma.js';
 
 export const refreshTokenRepository = {
   create(
-    data: { userId: string; familyId: string; tokenHash: string; expiresAt: Date; ipAddress?: string; userAgent?: string },
+    data: { userId: string; familyId: string; persistent: boolean; tokenHash: string; expiresAt: Date; ipAddress?: string; userAgent?: string },
     db: DbClient = prisma,
   ) {
     return db.refreshToken.create({ data });

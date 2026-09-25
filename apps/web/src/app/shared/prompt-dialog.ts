@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { TPipe } from '../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -17,7 +18,7 @@ export interface PromptData {
 
 /** Asks for a short text (a comment, a reason) before a workflow action. Closes with the text, or undefined. */
 @Component({
-  imports: [FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [TPipe, FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>
@@ -28,12 +29,12 @@ export interface PromptData {
         <mat-label>{{ data.label }}</mat-label>
         <textarea matInput rows="3" [(ngModel)]="text" cdkFocusInitial [required]="data.minLength > 0"></textarea>
         @if (data.minLength > 0) {
-          <mat-hint>Required</mat-hint>
+          <mat-hint>{{ 'Required' | t }}</mat-hint>
         }
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
+      <button mat-button mat-dialog-close>{{ 'Cancel' | t }}</button>
       <button
         mat-flat-button
         [class.danger]="data.danger"

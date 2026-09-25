@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, linkedSignal, resource } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -29,12 +30,12 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
 
 /** Filters live in the URL (?q=&status=&type=&sort=&order=&page=), so every view is linkable. */
 @Component({
-  imports: [FormsModule, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatPaginatorModule, StatusBadge, PageHeader, Avatar, Skeleton, EmptyState],
+  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatPaginatorModule, StatusBadge, PageHeader, Avatar, Skeleton, EmptyState],
   template: `
-    <cms-page-header title="Contracts" [subtitle]="(list.value()?.total ?? '…') + ' contracts you can see'">
-      <button mat-stroked-button (click)="exportCsv()" [disabled]="!list.value()?.total"><mat-icon>download</mat-icon>Export CSV</button>
+    <cms-page-header [title]="'Contracts' | t" [subtitle]="'{n} contracts you can see' | t: { n: list.value()?.total ?? '…' }">
+      <button mat-stroked-button (click)="exportCsv()" [disabled]="!list.value()?.total"><mat-icon>download</mat-icon>{{ 'Export CSV' | t }}</button>
       @if (auth.can('contract.create')) {
-        <a mat-flat-button routerLink="/contracts/new"><mat-icon>add</mat-icon>New contract</a>
+        <a mat-flat-button routerLink="/contracts/new"><mat-icon>add</mat-icon>{{ 'New contract' | t }}</a>
       }
     </cms-page-header>
 
@@ -48,7 +49,7 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
             [class]="(status() ?? '') === v.status ? '!bg-card !text-ink shadow-sm ring-1 ring-line' : ''"
             (click)="apply({ status: v.status })"
           >
-            {{ v.label }}
+            {{ v.label | t }}
           </button>
         }
       </div>
@@ -59,22 +60,22 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
           (ngModelChange)="search.set($event)"
           (keyup.enter)="apply({ q: search() })"
           (blur)="apply({ q: search() })"
-          placeholder="Filter by title, reference…"
-          aria-label="Filter contracts"
+          [placeholder]="'Filter by title, reference…' | t"
+          [attr.aria-label]="'Filter contracts' | t"
           class="h-9 w-full rounded-xl bg-card pr-3 pl-10 text-sm text-ink ring-1 ring-line outline-none placeholder:text-faint focus:ring-2 focus:ring-[var(--accent)]"
         />
       </div>
       <button mat-stroked-button [matMenuTriggerFor]="typeMenu">
-        <mat-icon>category</mat-icon>{{ types().length ? humanize(types()[0]!) + (types().length > 1 ? ' +' + (types().length - 1) : '') : 'All types' }}
+        <mat-icon>category</mat-icon>{{ types().length ? humanize(types()[0]!) + (types().length > 1 ? ' +' + (types().length - 1) : '') : ('All types' | t) }}
       </button>
       <mat-menu #typeMenu="matMenu">
-        <button mat-menu-item (click)="apply({ type: '' })">All types</button>
+        <button mat-menu-item (click)="apply({ type: '' })">{{ 'All types' | t }}</button>
         @for (t of allTypes; track t) {
           <button mat-menu-item (click)="apply({ type: t })"><mat-icon>{{ typeIcon[t] }}</mat-icon>{{ humanize(t) }}</button>
         }
       </mat-menu>
       @if (q() || status() || type()) {
-        <button mat-button (click)="clear()"><mat-icon>filter_alt_off</mat-icon>Clear</button>
+        <button mat-button (click)="clear()"><mat-icon>filter_alt_off</mat-icon>{{ 'Clear' | t }}</button>
       }
     </div>
 
@@ -82,9 +83,9 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
       @if (list.isLoading() && !list.value()) {
         <cms-skeleton [rows]="6" />
       } @else if (!list.value()?.items?.length) {
-        <cms-empty icon="search_off" [title]="list.error() ? 'Could not load contracts' : 'No contracts match'" text="Try another view or clear the filters.">
+        <cms-empty icon="search_off" [title]="(list.error() ? 'Could not load contracts' : 'No contracts match') | t" [text]="'Try another view or clear the filters.' | t">
           @if (q() || status() || type()) {
-            <button mat-stroked-button (click)="clear()">Clear filters</button>
+            <button mat-stroked-button (click)="clear()">{{ 'Clear filters' | t }}</button>
           }
         </cms-empty>
       } @else {
@@ -97,11 +98,11 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
                   <th class="px-4 py-3 font-medium whitespace-nowrap first:pl-5" [class.text-right]="col.key === 'value'">
                     @if (col.sortable) {
                       <button class="inline-flex items-center gap-1 hover:text-ink" (click)="sortBy(col.key)">
-                        {{ col.label }}
+                        {{ col.label | t }}
                         <mat-icon class="!size-4 !text-[16px] transition-transform" [class.opacity-0]="sort() !== col.key" [class.rotate-180]="order() === 'asc'">arrow_downward</mat-icon>
                       </button>
                     } @else {
-                      {{ col.label }}
+                      {{ col.label | t }}
                     }
                   </th>
                 }
@@ -126,7 +127,7 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
                   <td class="px-4 py-3 whitespace-nowrap text-body">
                     {{ date(c.endDate) }}
                     @if (c.autoRenew) {
-                      <mat-icon class="!size-4 align-middle !text-[16px] text-faint" title="Renews automatically">autorenew</mat-icon>
+                      <mat-icon class="!size-4 align-middle !text-[16px] text-faint" [title]="'Renews automatically' | t">autorenew</mat-icon>
                     }
                   </td>
                   <td class="px-4 py-3">

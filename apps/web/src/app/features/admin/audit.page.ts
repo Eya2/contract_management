@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
@@ -23,13 +24,13 @@ const ALERT = new Set(['AUTH_LOGIN_FAILED', 'AUTH_TOKEN_REUSE_DETECTED']);
 
 /** The append-only audit log: who did what, when, from where. */
 @Component({
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatSelectModule, PageHeader, Avatar, Skeleton, EmptyState],
+  imports: [TPipe, RouterLink, MatButtonModule, MatIconModule, MatSelectModule, PageHeader, Avatar, Skeleton, EmptyState],
   template: `
-    <cms-page-header eyebrow="Administration" title="Audit log" subtitle="Append-only: entries can't be edited or deleted, not even by an admin.">
-      <mat-select class="!w-64" [value]="action()" (selectionChange)="action.set($event.value); load()" placeholder="All events" aria-label="Filter by event">
-        <mat-option [value]="undefined">All events</mat-option>
+    <cms-page-header [eyebrow]="'Administration' | t" [title]="'Audit log' | t" [subtitle]="'Append-only: entries can’t be edited or deleted, not even by an admin.' | t">
+      <mat-select class="!w-64" [value]="action()" (selectionChange)="action.set($event.value); load()" [placeholder]="'All events' | t" [attr.aria-label]="'Filter by event' | t">
+        <mat-option [value]="undefined">{{ 'All events' | t }}</mat-option>
         @for (g of groups; track g.label) {
-          <mat-optgroup [label]="g.label">
+          <mat-optgroup [label]="g.label | t">
             @for (a of g.actions; track a) {
               <mat-option [value]="a">{{ humanize(a) }}</mat-option>
             }
@@ -50,7 +51,7 @@ const ALERT = new Set(['AUTH_LOGIN_FAILED', 'AUTH_TOKEN_REUSE_DETECTED']);
               <div class="min-w-0 flex-1">
                 <p class="text-sm">
                   <span class="font-medium" [class]="alert.has(e.action) ? 'text-rose-600 dark:text-rose-400' : 'text-ink'">{{ humanize(e.action) }}</span>
-                  <span class="text-muted">&nbsp;by {{ fullName(e.user) }}</span>
+                  <span class="text-muted">&nbsp;{{ 'by {name}' | t: { name: fullName(e.user) } }}</span>
                 </p>
                 <p class="text-xs text-muted">
                   {{ dateTime(e.createdAt) }}{{ e.ipAddress ? ' · ' + e.ipAddress : '' }}
@@ -67,12 +68,12 @@ const ALERT = new Set(['AUTH_LOGIN_FAILED', 'AUTH_TOKEN_REUSE_DETECTED']);
           </li>
         } @empty {
           @if (!loading()) {
-            <cms-empty icon="policy" title="No events" />
+            <cms-empty icon="policy" [title]="'No events' | t" />
           }
         }
       </ul>
       @if (cursor()) {
-        <div class="border-t border-line-soft p-3 text-center"><button mat-button [disabled]="loading()" (click)="load(true)">Load older</button></div>
+        <div class="border-t border-line-soft p-3 text-center"><button mat-button [disabled]="loading()" (click)="load(true)">{{ 'Load older' | t }}</button></div>
       }
     </div>
   `,

@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { TPipe } from '../core/i18n';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -24,14 +25,14 @@ const ICONS: Record<string, string> = {
 /** The bell: unread count (from CountsService) and a menu of the latest notifications. */
 @Component({
   selector: 'cms-notification-bell',
-  imports: [RouterLink, MatBadgeModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [TPipe, RouterLink, MatBadgeModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
   template: `
     <button
       mat-icon-button
       [matMenuTriggerFor]="menu"
       (menuOpened)="load()"
-      aria-label="Notifications"
-      matTooltip="Notifications"
+      [attr.aria-label]="'Notifications' | t"
+      [matTooltip]="'Notifications' | t"
       [matBadge]="counts.unread() > 99 ? '99+' : counts.unread()"
       [matBadgeHidden]="!counts.unread()"
       matBadgeColor="warn"
@@ -40,8 +41,8 @@ const ICONS: Record<string, string> = {
     </button>
     <mat-menu #menu="matMenu" xPosition="before" class="wide-menu">
       <div class="flex w-[26rem] max-w-full items-center justify-between px-4 pt-2 pb-1" (click)="$event.stopPropagation()">
-        <span class="font-semibold text-ink">Notifications</span>
-        <button mat-button [disabled]="!counts.unread()" (click)="markAll()">Mark all read</button>
+        <span class="font-semibold text-ink">{{ 'Notifications' | t }}</span>
+        <button mat-button [disabled]="!counts.unread()" (click)="markAll()">{{ 'Mark all read' | t }}</button>
       </div>
       @for (n of items(); track n.id; let i = $index) {
         <button mat-menu-item class="!h-auto !py-2.5" (click)="open(n)">
@@ -62,11 +63,11 @@ const ICONS: Record<string, string> = {
       } @empty {
         <div class="px-4 py-8 text-center">
           <mat-icon class="text-faint">notifications_off</mat-icon>
-          <p class="mt-1 text-sm text-muted">{{ loaded() ? 'You are all caught up.' : 'Loading…' }}</p>
+          <p class="mt-1 text-sm text-muted">{{ (loaded() ? 'You are all caught up.' : 'Loading…') | t }}</p>
         </div>
       }
       <div class="border-t border-line-soft px-2 pt-1">
-        <a mat-button routerLink="/notifications" class="!w-full">See all notifications</a>
+        <a mat-button routerLink="/notifications" class="!w-full">{{ 'See all notifications' | t }}</a>
       </div>
     </mat-menu>
   `,

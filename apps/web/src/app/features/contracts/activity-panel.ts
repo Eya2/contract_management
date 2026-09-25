@@ -1,4 +1,5 @@
 import { Component, inject, input, resource } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { AuthService } from '../../core/auth.service';
 import { Api } from '../../core/api.service';
 import { dateTime, fullName, humanize } from '../../shared/format';
@@ -7,11 +8,11 @@ import { StatusBadge } from '../../shared/status-badge';
 /** The business timeline for everyone, plus the security audit trail for Legal and Admin. */
 @Component({
   selector: 'cms-activity-panel',
-  imports: [StatusBadge],
+  imports: [TPipe, StatusBadge],
   template: `
     <div class="grid gap-6 lg:grid-cols-2">
       <section class="card p-5">
-        <h3 class="mb-4 font-semibold">Status timeline</h3>
+        <h3 class="mb-4 font-semibold">{{ 'Status timeline' | t }}</h3>
         <ol class="space-y-4">
           @for (t of timeline.value(); track t.id) {
             <li class="flex gap-3">
@@ -35,11 +36,11 @@ import { StatusBadge } from '../../shared/status-badge';
 
       @if (canAudit) {
         <section class="card p-5">
-          <h3 class="mb-4 font-semibold">Audit trail <span class="text-xs font-normal text-muted">(append-only)</span></h3>
+          <h3 class="mb-4 font-semibold">{{ 'Audit trail' | t }} <span class="text-xs font-normal text-muted">{{ '(append-only)' | t }}</span></h3>
           <ul class="divide-y divide-line-soft text-sm">
             @for (e of audit.value()?.items; track e.id) {
               <li class="py-2">
-                <p><span class="font-medium">{{ humanize(e.action) }}</span><span class="text-muted">&nbsp;by {{ fullName(e.user) }}</span></p>
+                <p><span class="font-medium">{{ humanize(e.action) }}</span><span class="text-muted">&nbsp;{{ 'by {name}' | t: { name: fullName(e.user) } }}</span></p>
                 <p class="text-xs text-muted">{{ dateTime(e.createdAt) }}{{ e.ipAddress ? ' · ' + e.ipAddress : '' }}</p>
               </li>
             }

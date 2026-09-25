@@ -39,8 +39,8 @@ export class AuthService {
     return this.user()?.permissions.includes(permission) ?? false;
   }
 
-  async login(email: string, password: string): Promise<void> {
-    const session = await firstValueFrom(this.http.post<Session>('/api/auth/login', { email, password }));
+  async login(email: string, password: string, remember = false): Promise<void> {
+    const session = await firstValueFrom(this.http.post<Session>('/api/auth/login', { email, password, remember }));
     this.token.set(session.accessToken);
     await this.loadProfile();
   }

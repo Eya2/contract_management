@@ -18,8 +18,9 @@ const baseOptions: CookieOptions = {
   path: '/api/auth',
 };
 
-export function setRefreshCookie(res: Response, token: string, expires: Date): void {
-  res.cookie(REFRESH_COOKIE, token, { ...baseOptions, expires });
+/** Without `expires` it's a session cookie: the browser drops it when it closes. */
+export function setRefreshCookie(res: Response, token: string, expires?: Date): void {
+  res.cookie(REFRESH_COOKIE, token, { ...baseOptions, ...(expires ? { expires } : {}) });
 }
 
 export function clearRefreshCookie(res: Response): void {

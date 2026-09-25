@@ -1,4 +1,5 @@
 import { Component, inject, resource } from '@angular/core';
+import { TPipe, t } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,14 +9,15 @@ import type { PendingStep } from '../../core/models';
 import { CountsService } from '../../core/counts.service';
 import { Toast } from '../../core/toast.service';
 import { dateTime, fullName, humanize, money } from '../../shared/format';
+import { previewContract } from '../../shared/pdf-preview-dialog';
 import { PromptDialog, type PromptData } from '../../shared/prompt-dialog';
 
 /** "Pending my approval": the steps the user can decide now, most urgent first. */
 @Component({
-  imports: [RouterLink, MatButtonModule, MatIconModule],
+  imports: [TPipe, RouterLink, MatButtonModule, MatIconModule],
   template: `
-    <h1 class="text-2xl font-bold text-ink">Approvals</h1>
-    <p class="mb-6 text-sm text-muted">Contracts waiting for your decision, most urgent first.</p>
+    <h1 class="text-2xl font-bold text-ink">{{ 'Approvals' | t }}</h1>
+    <p class="mb-6 text-sm text-muted">{{ 'Contracts waiting for your decision, most urgent first.' | t }}</p>
 
     @for (s of queue.value(); track s.id) {
       <article class="card card-interactive stagger mb-4 p-5" [style.--i]="$index" [class.overdue]="s.overdue">
@@ -26,10 +28,10 @@ import { PromptDialog, type PromptData } from '../../shared/prompt-dialog';
                 {{ s.request.contract.title }}
               </a>
               @if (s.overdue) {
-                <span class="rounded-md bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-400/15 dark:text-orange-300">Overdue</span>
+                <span class="rounded-md bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-400/15 dark:text-orange-300">{{ 'Overdue' | t }}</span>
               }
               @if (s.escalatedToMe) {
-                <span class="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700">Escalated to you</span>
+                <span class="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700">{{ 'Escalated to you' | t }}</span>
               }
             </div>
             <p class="mt-1 text-sm text-muted">
@@ -38,10 +40,10 @@ import { PromptDialog, type PromptData } from '../../shared/prompt-dialog';
             </p>
             <p class="mt-3 text-sm">
               <span class="font-medium">{{ s.name }}</span>
-              <span class="text-muted"> (stage {{ s.stage }}) · requested by {{ fullName(s.request.submittedBy) }} · {{ dateTime(s.request.submittedAt) }}</span>
+              <span class="text-muted"> {{ '(stage {n}) · requested by {name} · {date}' | t: { n: s.stage, name: fullName(s.request.submittedBy), date: dateTime(s.request.submittedAt) } }}</span>
             </p>
             @if (s.dueAt) {
-              <p class="text-sm" [class]="s.overdue ? 'text-orange-700 dark:text-orange-300' : 'text-muted'">Due {{ dateTime(s.dueAt) }}</p>
+              <p class="text-sm" [class]="s.overdue ? 'text-orange-700 dark:text-orange-300' : 'text-muted'">{{ 'Due {date}' | t: { date: dateTime(s.dueAt) } }}</p>
             }
             @if (s.routingNote) {
               <p class="mt-1 text-xs text-muted italic">{{ s.routingNote }}</p>
@@ -49,9 +51,10 @@ import { PromptDialog, type PromptData } from '../../shared/prompt-dialog';
           </div>
           <div class="text-right">
             <p class="text-xl font-semibold text-ink tabular-nums">{{ money(s.request.contract.value, s.request.contract.currency) }}</p>
-            <div class="mt-3 flex gap-2">
-              <button mat-stroked-button class="!text-rose-600 dark:!text-rose-400" (click)="reject(s)">Reject</button>
-              <button mat-flat-button (click)="approve(s)"><mat-icon>check</mat-icon>Approve</button>
+            <div class="mt-3 flex flex-wrap justify-end gap-2">
+              <button mat-button (click)="review(s)"><mat-icon>visibility</mat-icon>{{ 'Review' | t }}</button>
+              <button mat-stroked-button class="!text-rose-600 dark:!text-rose-400" (click)="reject(s)">{{ 'Reject' | t }}</button>
+              <button mat-flat-button (click)="approve(s)"><mat-icon>check</mat-icon>{{ 'Approve' | t }}</button>
             </div>
           </div>
         </div>
@@ -59,7 +62,7 @@ import { PromptDialog, type PromptData } from '../../shared/prompt-dialog';
     } @empty {
       <div class="rounded-xl bg-card p-12 text-center shadow-sm ring-1 ring-line">
         <mat-icon class="!size-10 !text-[40px] text-emerald-500">task_alt</mat-icon>
-        <p class="mt-2 font-medium">{{ queue.isLoading() ? 'Loading…' : 'Nothing is waiting for you.' }}</p>
+        <p class="mt-2 font-medium">{{ (queue.isLoading() ? 'Loading…' : 'Nothing is waiting for you.') | t }}</p>
       </div>
     }
   `,
@@ -75,15 +78,19 @@ export class ApprovalsPage {
   protected readonly fullName = fullName;
   protected readonly dateTime = dateTime;
 
+  protected review(s: PendingStep) {
+    previewContract(this.dialog, s.request.contract, s.request.contractVersion.versionNumber);
+  }
+
   protected approve(s: PendingStep) {
-    this.decide({ title: `Approve “${s.name}”`, message: s.request.contract.title, label: 'Comment (optional)', confirm: 'Approve', minLength: 0 }, (c) =>
+    this.decide({ title: t('Approve “{name}”', { name: s.name }), message: s.request.contract.title, label: t('Comment (optional)'), confirm: t('Approve'), minLength: 0 }, (c) =>
       this.api.approve(s.id, c || undefined),
     );
   }
 
   protected reject(s: PendingStep) {
     this.decide(
-      { title: `Reject “${s.name}”`, message: `${s.request.contract.title}. The owner will be asked to revise.`, label: 'Reason', confirm: 'Reject', minLength: 1, danger: true },
+      { title: t('Reject “{name}”', { name: s.name }), message: t('{title}. The owner will be asked to revise.', { title: s.request.contract.title }), label: t('Reason'), confirm: t('Reject'), minLength: 1, danger: true },
       (c) => this.api.reject(s.id, c),
     );
   }
@@ -96,7 +103,7 @@ export class ApprovalsPage {
         if (comment === undefined) return;
         try {
           await action(comment);
-          this.toast.success('Decision recorded');
+          this.toast.success(t('Decision recorded'));
         } catch (err) {
           this.toast.error(err);
         }

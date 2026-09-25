@@ -83,6 +83,33 @@ describe('POST /api/auth/login', () => {
   });
 });
 
+describe('keep me signed in', () => {
+  it('uses a browser-session cookie by default, and a 30-day cookie with remember', async () => {
+    const user = await createUser('EMPLOYEE');
+    const session = refreshCookie(await login(user.email))!;
+    expect(session).not.toMatch(/Expires=/);
+
+    const remembered = await request(app).post('/api/auth/login').send({ email: user.email, password: PASSWORD, remember: true });
+    const cookie = refreshCookie(remembered)!;
+    const expires = new Date(/Expires=([^;]+)/.exec(cookie)![1]!);
+    expect(expires.getTime() - Date.now()).toBeGreaterThan(29 * 86_400_000);
+
+    // The choice survives rotation.
+    const rotated = refreshCookie(await refresh(cookiePair(remembered)))!;
+    expect(rotated).toMatch(/Expires=/);
+    const sessionRotated = refreshCookie(await refresh(session.split(';')[0]!))!;
+    expect(sessionRotated).not.toMatch(/Expires=/);
+  });
+
+  it('keeps an unremembered session short on the server too', async () => {
+    const user = await createUser('EMPLOYEE');
+    await login(user.email);
+    const token = await prisma.refreshToken.findFirstOrThrow({ where: { userId: user.id } });
+    expect(token.persistent).toBe(false);
+    expect(token.expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(12 * 3_600_000 + 5_000);
+  });
+});
+
 describe('GET /api/auth/me', () => {
   it('returns the profile with permissions, never the password hash', async () => {
     const user = await createUser('FINANCE');

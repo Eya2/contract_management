@@ -1,4 +1,5 @@
 import { Component, inject, input, resource, signal } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -13,28 +14,28 @@ import { AuthCard } from './auth-card';
 
 /** Where the emailed link lands: /reset-password?token=… */
 @Component({
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, AuthCard, PasswordRules],
+  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, AuthCard, PasswordRules],
   template: `
     @if (check.isLoading()) {
-      <cms-auth-card title="Checking your link…"><mat-spinner diameter="28" class="mx-auto" /></cms-auth-card>
+      <cms-auth-card [title]="'Checking your link…' | t"><mat-spinner diameter="28" class="mx-auto" /></cms-auth-card>
     } @else if (done()) {
-      <cms-auth-card title="Password updated">
+      <cms-auth-card [title]="'Password updated' | t">
         <div class="flex flex-col items-center text-center">
           <span class="mb-4 flex size-16 animate-pop items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300"><mat-icon class="!size-8 !text-[32px]">check</mat-icon></span>
-          <p class="text-sm text-body">You can now sign in with your new password. For your security, every other session was signed out.</p>
-          <a mat-flat-button routerLink="/login" class="mt-6">Sign in</a>
+          <p class="text-sm text-body">{{ 'You can now sign in with your new password. For your security, every other session was signed out.' | t }}</p>
+          <a mat-flat-button routerLink="/login" class="mt-6">{{ 'Sign in' | t }}</a>
         </div>
       </cms-auth-card>
     } @else if (!check.value()?.valid) {
-      <cms-auth-card title="This link has expired">
-        <p class="text-sm text-body">Reset links work once and for one hour. Request a new one to continue.</p>
-        <a mat-flat-button routerLink="/forgot-password" class="mt-6 w-full">Send a new link</a>
+      <cms-auth-card [title]="'This link has expired' | t">
+        <p class="text-sm text-body">{{ 'Reset links work once and for one hour. Request a new one to continue.' | t }}</p>
+        <a mat-flat-button routerLink="/forgot-password" class="mt-6 w-full">{{ 'Send a new link' | t }}</a>
       </cms-auth-card>
     } @else {
-      <cms-auth-card title="Choose a new password" subtitle="Pick something you don't use anywhere else.">
+      <cms-auth-card [title]="'Choose a new password' | t" [subtitle]="'Pick something you don’t use anywhere else.' | t">
         <form (ngSubmit)="submit()">
           <mat-form-field class="w-full" subscriptSizing="dynamic">
-            <mat-label>New password</mat-label>
+            <mat-label>{{ 'New password' | t }}</mat-label>
             <input matInput [type]="show() ? 'text' : 'password'" name="p1" autocomplete="new-password" [(ngModel)]="password" required />
             <button mat-icon-button matSuffix type="button" (click)="show.set(!show())" [attr.aria-label]="show() ? 'Hide password' : 'Show password'">
               <mat-icon>{{ show() ? 'visibility_off' : 'visibility' }}</mat-icon>
@@ -42,17 +43,17 @@ import { AuthCard } from './auth-card';
           </mat-form-field>
           <cms-password-rules [password]="password()" />
           <mat-form-field class="w-full">
-            <mat-label>Confirm new password</mat-label>
+            <mat-label>{{ 'Confirm new password' | t }}</mat-label>
             <input matInput [type]="show() ? 'text' : 'password'" name="p2" autocomplete="new-password" [(ngModel)]="confirm" required />
             @if (confirm() && confirm() !== password()) {
-              <mat-hint class="!text-rose-600">The passwords don't match</mat-hint>
+              <mat-hint class="!text-rose-600">{{ 'The passwords don’t match' | t }}</mat-hint>
             }
           </mat-form-field>
           @if (error()) {
             <div class="callout tone-danger mb-4" role="alert"><mat-icon>error</mat-icon>{{ error() }}</div>
           }
           <button mat-flat-button class="!h-11 w-full" [disabled]="busy() || !passwordOk(password()) || password() !== confirm()">
-            {{ busy() ? 'Saving…' : 'Update password' }}
+            {{ (busy() ? 'Saving…' : 'Update password') | t }}
           </button>
         </form>
       </cms-auth-card>

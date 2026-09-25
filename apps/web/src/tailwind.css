@@ -225,6 +225,9 @@
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: 0.01ms !important;
+    /* No delays either: delayed content would otherwise appear late or, with
+       fill-mode "both", stay hidden until the delay ends. */
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }

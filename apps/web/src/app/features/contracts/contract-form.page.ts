@@ -1,4 +1,5 @@
 import { Component, inject, input, OnInit, signal } from '@angular/core';
+import { TPipe, t } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -34,12 +35,12 @@ function slug(text: string, taken: Set<string>): string {
 
 /** Create a contract, or edit one (which saves a new version). */
 @Component({
-  imports: [FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatProgressSpinnerModule],
+  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatProgressSpinnerModule],
   template: `
     <a [routerLink]="id() ? ['/contracts', id()] : '/contracts'" class="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
-      <span class="material-symbols-outlined !text-[18px]">arrow_back</span>Back
+      <span class="material-symbols-outlined !text-[18px]">arrow_back</span>{{ 'Back' | t }}
     </a>
-    <h1 class="mb-6 text-2xl font-bold text-ink">{{ id() ? 'Edit contract' : 'New contract' }}</h1>
+    <h1 class="mb-6 text-2xl font-bold text-ink">{{ (id() ? 'Edit contract' : 'New contract') | t }}</h1>
 
     @if (loading()) {
       <mat-spinner diameter="32" />
@@ -47,14 +48,14 @@ function slug(text: string, taken: Set<string>): string {
       <form class="grid gap-6 lg:grid-cols-3" (ngSubmit)="save()">
         <div class="space-y-6 lg:col-span-2">
           <section class="card p-5">
-            <h2 class="mb-4 font-semibold text-ink">Details</h2>
+            <h2 class="mb-4 font-semibold text-ink">{{ 'Details' | t }}</h2>
             <mat-form-field class="w-full">
-              <mat-label>Title</mat-label>
+              <mat-label>{{ 'Title' | t }}</mat-label>
               <input matInput name="title" [(ngModel)]="title" required minlength="3" maxlength="200" />
             </mat-form-field>
             <div class="grid gap-x-4 sm:grid-cols-2">
               <mat-form-field>
-                <mat-label>Type</mat-label>
+                <mat-label>{{ 'Type' | t }}</mat-label>
                 <mat-select name="type" [(ngModel)]="type" required>
                   @for (t of types; track t) {
                     <mat-option [value]="t">{{ humanize(t) }}</mat-option>
@@ -62,13 +63,13 @@ function slug(text: string, taken: Set<string>): string {
                 </mat-select>
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Counterparty</mat-label>
+                <mat-label>{{ 'Counterparty' | t }}</mat-label>
                 <mat-select name="counterparty" [(ngModel)]="counterpartyId" required>
                   @for (c of counterparties(); track c.id) {
                     <mat-option [value]="c.id">{{ c.name }}</mat-option>
                   }
                 </mat-select>
-                <button mat-icon-button matSuffix type="button" (click)="$event.stopPropagation(); addingCounterparty.set(!addingCounterparty())" aria-label="Add counterparty">
+                <button mat-icon-button matSuffix type="button" (click)="$event.stopPropagation(); addingCounterparty.set(!addingCounterparty())" [attr.aria-label]="'Add counterparty' | t">
                   <mat-icon>add_business</mat-icon>
                 </button>
               </mat-form-field>
@@ -76,19 +77,19 @@ function slug(text: string, taken: Set<string>): string {
             @if (addingCounterparty()) {
               <div class="mb-4 flex flex-wrap items-start gap-3 rounded-lg bg-subtle p-3">
                 <mat-form-field subscriptSizing="dynamic" class="flex-1">
-                  <mat-label>New counterparty name</mat-label>
+                  <mat-label>{{ 'New counterparty name' | t }}</mat-label>
                   <input matInput name="newCp" [(ngModel)]="newCounterparty" />
                 </mat-form-field>
-                <button mat-stroked-button type="button" class="mt-2" [disabled]="newCounterparty().trim().length < 2" (click)="createCounterparty()">Add</button>
+                <button mat-stroked-button type="button" class="mt-2" [disabled]="newCounterparty().trim().length < 2" (click)="createCounterparty()">{{ 'Add' | t }}</button>
               </div>
             }
             <div class="grid gap-x-4 sm:grid-cols-3">
               <mat-form-field class="sm:col-span-2">
-                <mat-label>Value</mat-label>
+                <mat-label>{{ 'Value' | t }}</mat-label>
                 <input matInput name="value" type="number" min="0" step="0.01" [(ngModel)]="value" />
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Currency</mat-label>
+                <mat-label>{{ 'Currency' | t }}</mat-label>
                 <mat-select name="currency" [(ngModel)]="currency">
                   @for (c of currencies; track c) {
                     <mat-option [value]="c">{{ c }}</mat-option>
@@ -96,53 +97,53 @@ function slug(text: string, taken: Set<string>): string {
                 </mat-select>
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Start date</mat-label>
+                <mat-label>{{ 'Start date' | t }}</mat-label>
                 <input matInput name="startDate" type="date" [(ngModel)]="startDate" />
               </mat-form-field>
               <mat-form-field>
-                <mat-label>End date</mat-label>
+                <mat-label>{{ 'End date' | t }}</mat-label>
                 <input matInput name="endDate" type="date" [(ngModel)]="endDate" [min]="startDate()" />
               </mat-form-field>
-              <mat-checkbox name="autoRenew" class="mt-3" [(ngModel)]="autoRenew">Renews automatically</mat-checkbox>
+              <mat-checkbox name="autoRenew" class="mt-3" [(ngModel)]="autoRenew">{{ 'Renews automatically' | t }}</mat-checkbox>
             </div>
           </section>
 
           <section class="card p-5">
             <div class="mb-4 flex items-center justify-between">
-              <h2 class="font-semibold text-ink">Clauses</h2>
-              <button mat-stroked-button type="button" (click)="addClause()"><mat-icon>add</mat-icon>Add clause</button>
+              <h2 class="font-semibold text-ink">{{ 'Clauses' | t }}</h2>
+              <button mat-stroked-button type="button" (click)="addClause()"><mat-icon>add</mat-icon>{{ 'Add clause' | t }}</button>
             </div>
             @for (c of clauses(); track c.uid; let i = $index, first = $first, last = $last) {
               <div class="mb-4 rounded-lg border border-line p-4">
                 <div class="flex items-start gap-2">
                   <span class="mt-4 w-6 shrink-0 text-sm font-semibold text-faint">{{ i + 1 }}.</span>
                   <mat-form-field class="flex-1" subscriptSizing="dynamic">
-                    <mat-label>Heading</mat-label>
+                    <mat-label>{{ 'Heading' | t }}</mat-label>
                     <input matInput [name]="'h' + c.uid" [(ngModel)]="c.heading" required />
                   </mat-form-field>
-                  <button mat-icon-button type="button" [disabled]="first" (click)="move(i, -1)" aria-label="Move up"><mat-icon>arrow_upward</mat-icon></button>
-                  <button mat-icon-button type="button" [disabled]="last" (click)="move(i, 1)" aria-label="Move down"><mat-icon>arrow_downward</mat-icon></button>
-                  <button mat-icon-button type="button" (click)="removeClause(i)" aria-label="Remove clause"><mat-icon>delete</mat-icon></button>
+                  <button mat-icon-button type="button" [disabled]="first" (click)="move(i, -1)" [attr.aria-label]="'Move up' | t"><mat-icon>arrow_upward</mat-icon></button>
+                  <button mat-icon-button type="button" [disabled]="last" (click)="move(i, 1)" [attr.aria-label]="'Move down' | t"><mat-icon>arrow_downward</mat-icon></button>
+                  <button mat-icon-button type="button" (click)="removeClause(i)" [attr.aria-label]="'Remove clause' | t"><mat-icon>delete</mat-icon></button>
                 </div>
                 <mat-form-field class="mt-2 w-full pl-8" subscriptSizing="dynamic">
-                  <mat-label>Text</mat-label>
+                  <mat-label>{{ 'Text' | t }}</mat-label>
                   <textarea matInput [name]="'b' + c.uid" rows="3" [(ngModel)]="c.body" required></textarea>
                 </mat-form-field>
               </div>
             } @empty {
-              <p class="rounded-xl bg-subtle p-4 text-sm text-muted">No clauses. Add clauses, or upload the contract document instead.</p>
+              <p class="rounded-xl bg-subtle p-4 text-sm text-muted">{{ 'No clauses. Add clauses, or upload the contract document instead.' | t }}</p>
             }
           </section>
         </div>
 
         <aside class="space-y-6">
           <section class="card p-5">
-            <h2 class="mb-3 font-semibold text-ink">Document</h2>
+            <h2 class="mb-3 font-semibold text-ink">{{ 'Document' | t }}</h2>
             @if (currentFile() && !removeDocument() && !file()) {
               <div class="mb-3 flex items-center gap-2 rounded-lg bg-subtle p-3 text-sm">
                 <mat-icon class="text-rose-600">picture_as_pdf</mat-icon>
                 <span class="min-w-0 flex-1 truncate">{{ currentFile()!.originalName }}</span>
-                <button mat-icon-button type="button" (click)="removeDocument.set(true)" aria-label="Remove document"><mat-icon>close</mat-icon></button>
+                <button mat-icon-button type="button" (click)="removeDocument.set(true)" [attr.aria-label]="'Remove document' | t"><mat-icon>close</mat-icon></button>
               </div>
             }
             <label class="flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed border-line p-6 text-center text-sm text-muted hover:border-[var(--accent)] hover:bg-accent-soft">
@@ -150,7 +151,7 @@ function slug(text: string, taken: Set<string>): string {
               @if (file(); as f) {
                 <span class="font-medium text-ink">{{ f.name }}</span><span>{{ fileSize(f.size) }}</span>
               } @else {
-                <span>PDF, DOCX or DOC, up to 20 MB</span>
+                <span>{{ 'PDF, DOCX or DOC, up to 20 MB' | t }}</span>
               }
               <input type="file" class="sr-only" accept=".pdf,.docx,.doc" (change)="pickFile($event)" />
             </label>
@@ -158,12 +159,12 @@ function slug(text: string, taken: Set<string>): string {
 
           @if (id()) {
             <section class="card p-5">
-              <h2 class="mb-3 font-semibold text-ink">What changed?</h2>
+              <h2 class="mb-3 font-semibold text-ink">{{ 'What changed?' | t }}</h2>
               <mat-form-field class="w-full" subscriptSizing="dynamic">
-                <mat-label>Change summary (shown in the history)</mat-label>
+                <mat-label>{{ 'Change summary (shown in the history)' | t }}</mat-label>
                 <textarea matInput name="summary" rows="2" [(ngModel)]="changeSummary" maxlength="500"></textarea>
               </mat-form-field>
-              <p class="mt-3 text-xs text-muted">Saving creates version {{ (expectedVersion() ?? 0) + 1 }}. Earlier versions stay in the history.</p>
+              <p class="mt-3 text-xs text-muted">{{ 'Saving creates version {n}. Earlier versions stay in the history.' | t: { n: (expectedVersion() ?? 0) + 1 } }}</p>
             </section>
           }
 
@@ -171,7 +172,7 @@ function slug(text: string, taken: Set<string>): string {
             <p class="callout tone-danger" role="alert">{{ error() }}</p>
           }
           <button mat-flat-button type="submit" class="w-full" [disabled]="saving() || !valid()">
-            {{ saving() ? 'Saving…' : id() ? 'Save new version' : 'Create draft' }}
+            {{ (saving() ? 'Saving…' : id() ? 'Save new version' : 'Create draft') | t }}
           </button>
         </aside>
       </form>
@@ -306,7 +307,7 @@ export class ContractFormPage implements OnInit {
 
     try {
       const saved = this.id() ? await this.api.updateContract(this.id()!, form) : await this.api.createContract(form);
-      this.toast.success(this.id() ? `Saved as version ${saved.currentVersionNumber}` : `Draft ${saved.referenceNumber} created`);
+      this.toast.success(this.id() ? t('Saved as version {n}', { n: saved.currentVersionNumber }) : t('Draft {ref} created', { ref: saved.referenceNumber }));
       await this.router.navigate(['/contracts', saved.id]);
     } catch (err) {
       this.error.set(errorMessage(err));

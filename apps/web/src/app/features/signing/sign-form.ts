@@ -1,4 +1,5 @@
 import { Component, computed, input, output, signal } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -15,16 +16,16 @@ import { SignaturePad } from '../../shared/signature-pad';
  */
 @Component({
   selector: 'cms-sign-form',
-  imports: [FormsModule, MatButtonModule, MatButtonToggleModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, SignaturePad],
+  imports: [TPipe, FormsModule, MatButtonModule, MatButtonToggleModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, SignaturePad],
   template: `
-    <mat-button-toggle-group class="mb-4" [value]="method()" (change)="method.set($event.value)" aria-label="Signature method">
-      <mat-button-toggle value="TYPED">Type</mat-button-toggle>
-      <mat-button-toggle value="DRAWN">Draw</mat-button-toggle>
+    <mat-button-toggle-group class="mb-4" [value]="method()" (change)="method.set($event.value)" [attr.aria-label]="'Signature method' | t">
+      <mat-button-toggle value="TYPED">{{ 'Type' | t }}</mat-button-toggle>
+      <mat-button-toggle value="DRAWN">{{ 'Draw' | t }}</mat-button-toggle>
     </mat-button-toggle-group>
 
     @if (method() === 'TYPED') {
       <mat-form-field class="w-full">
-        <mat-label>Your full name</mat-label>
+        <mat-label>{{ 'Your full name' | t }}</mat-label>
         <input matInput [ngModel]="typedName()" (ngModelChange)="typedName.set($event)" autocomplete="name" />
       </mat-form-field>
       @if (typedName().trim()) {
@@ -34,15 +35,15 @@ import { SignaturePad } from '../../shared/signature-pad';
       <cms-signature-pad (changed)="image.set($event)" />
     }
 
-    <p class="mt-3 rounded-md bg-subtle p-2 font-mono text-[11px] break-all text-muted" title="SHA-256 of the contract content">
-      Content fingerprint: {{ contentHash() }}
+    <p class="mt-3 rounded-md bg-subtle p-2 font-mono text-[11px] break-all text-muted" [title]="'SHA-256 of the contract content' | t">
+      {{ 'Content fingerprint' | t }}: {{ contentHash() }}
     </p>
     <mat-checkbox class="mt-3 block" [checked]="consent()" (change)="consent.set($event.checked)">
-      I have reviewed this contract and agree to sign it electronically. My electronic signature is legally binding.
+      {{ 'I have reviewed this contract and agree to sign it electronically. My electronic signature is legally binding.' | t }}
     </mat-checkbox>
     <div class="mt-4 flex flex-wrap justify-end gap-2">
       <ng-content />
-      <button mat-flat-button [disabled]="!ready() || busy()" (click)="submit()">{{ busy() ? 'Signing…' : 'Sign contract' }}</button>
+      <button mat-flat-button [disabled]="!ready() || busy()" (click)="submit()">{{ (busy() ? 'Signing…' : 'Sign contract') | t }}</button>
     </div>
   `,
 })

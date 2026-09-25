@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -24,22 +25,22 @@ interface Row {
  * parties (by email; they get a personal link). Same order = sign in parallel.
  */
 @Component({
-  imports: [FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [TPipe, FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
-    <h2 mat-dialog-title>Signers</h2>
+    <h2 mat-dialog-title>{{ 'Signers' | t }}</h2>
     <mat-dialog-content class="!max-w-2xl">
       <p class="mb-4 text-sm text-body">
-        Lower numbers sign first; people with the same number sign in any order. External signers receive a personal link by email.
+        {{ 'Lower numbers sign first; people with the same number sign in any order. External signers receive a personal link by email.' | t }}
       </p>
       @for (r of rows(); track $index; let i = $index) {
         <div class="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-line p-2">
           <mat-form-field subscriptSizing="dynamic" class="w-20">
-            <mat-label>Order</mat-label>
+            <mat-label>{{ 'Order' | t }}</mat-label>
             <input matInput type="number" min="1" max="10" [(ngModel)]="r.signingOrder" [name]="'o' + i" />
           </mat-form-field>
           @if (r.kind === 'internal') {
             <mat-form-field subscriptSizing="dynamic" class="min-w-60 flex-1">
-              <mat-label>Colleague</mat-label>
+              <mat-label>{{ 'Colleague' | t }}</mat-label>
               <mat-select [(ngModel)]="r.userId" [name]="'u' + i">
                 @for (c of candidates(); track c.id) {
                   <mat-option [value]="c.id">{{ c.firstName }} {{ c.lastName }} · {{ humanize(c.role) }}, {{ c.department.name }}</mat-option>
@@ -48,28 +49,28 @@ interface Row {
             </mat-form-field>
           } @else {
             <mat-form-field subscriptSizing="dynamic" class="flex-1">
-              <mat-label>Name</mat-label>
+              <mat-label>{{ 'Name' | t }}</mat-label>
               <input matInput [(ngModel)]="r.name" [name]="'n' + i" />
             </mat-form-field>
             <mat-form-field subscriptSizing="dynamic" class="flex-1">
-              <mat-label>Email</mat-label>
+              <mat-label>{{ 'Email' | t }}</mat-label>
               <input matInput type="email" [(ngModel)]="r.email" [name]="'e' + i" />
             </mat-form-field>
           }
-          <button mat-icon-button (click)="remove(i)" aria-label="Remove signer"><mat-icon>delete</mat-icon></button>
+          <button mat-icon-button (click)="remove(i)" [attr.aria-label]="'Remove signer' | t"><mat-icon>delete</mat-icon></button>
         </div>
       }
       <div class="mt-3 flex gap-2">
-        <button mat-stroked-button (click)="add('internal')"><mat-icon>person_add</mat-icon>Colleague</button>
-        <button mat-stroked-button (click)="add('external')"><mat-icon>alternate_email</mat-icon>External signer</button>
+        <button mat-stroked-button (click)="add('internal')"><mat-icon>person_add</mat-icon>{{ 'Colleague' | t }}</button>
+        <button mat-stroked-button (click)="add('external')"><mat-icon>alternate_email</mat-icon>{{ 'External signer' | t }}</button>
       </div>
       @if (error()) {
         <p class="mt-3 callout tone-danger" role="alert">{{ error() }}</p>
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button [disabled]="busy() || !valid()" (click)="save()">Send for signature</button>
+      <button mat-button mat-dialog-close>{{ 'Cancel' | t }}</button>
+      <button mat-flat-button [disabled]="busy() || !valid()" (click)="save()">{{ 'Send for signature' | t }}</button>
     </mat-dialog-actions>
   `,
 })

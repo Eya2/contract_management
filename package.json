@@ -15,9 +15,13 @@
     "db:migrate": "npm run db:migrate -w @cms/api",
     "db:seed": "npm run db:seed -w @cms/api",
     "test": "npm run build:shared && npm test --workspaces --if-present",
-    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
   }
 }

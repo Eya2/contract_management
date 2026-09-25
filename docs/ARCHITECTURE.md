@@ -209,6 +209,26 @@ scan   ─▶ planEscalation
   `DRAFT` with the reason. The signer list is frozen after the first
   signature.
 
+### Contract PDFs
+
+`modules/documents/contract-pdf.ts` renders a version as a formal PDF (PDFKit):
+letterhead, parties, key terms, numbered clauses, signature blocks and, once
+signed, a certificate page with each signer's evidence and the approval trail.
+It's rendered **on demand** rather than stored: versions are immutable, so the
+same version always renders the same terms, and signatures appear as soon as
+they exist. The version's content hash is printed on every page, tying the PDF
+to what was approved and signed. Labels exist in English and French
+(`?lang=fr`). The web app shows the PDF in the browser's viewer from a `blob:`
+URL, because the API needs the bearer token, which an `<iframe src>` can't send.
+
+### Sessions
+
+"Keep me signed in" issues a persistent refresh cookie (30 days). Otherwise the
+cookie is a browser-session cookie and the server allows 12 hours. The choice is
+stored on the refresh token and carried through every rotation. Password resets
+use 256-bit single-use tokens, stored as hashes and valid for one hour; a reset
+revokes every session, and a password change revokes all but the current one.
+
 ### Background work
 
 `jobs/scheduler.ts` runs three idempotent tasks in-process: the **job worker**

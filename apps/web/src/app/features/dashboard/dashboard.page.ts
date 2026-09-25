@@ -1,4 +1,5 @@
 import { Component, computed, inject, resource } from '@angular/core';
+import { TPipe, locale, t } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
@@ -26,16 +27,16 @@ const BAR: Record<string, string> = {
 };
 
 @Component({
-  imports: [RouterLink, MatButtonModule, MatIconModule, StatusBadge, PageHeader, CountUp, Skeleton, EmptyState],
+  imports: [TPipe, RouterLink, MatButtonModule, MatIconModule, StatusBadge, PageHeader, CountUp, Skeleton, EmptyState],
   template: `
-    <cms-page-header [eyebrow]="today" [title]="'Good ' + greeting() + ', ' + (auth.user()?.firstName ?? '')" subtitle="Here is what needs your attention today.">
+    <cms-page-header [eyebrow]="today()" [title]="'Good ' + greeting() + ', {name}' | t: { name: auth.user()?.firstName ?? '' }" [subtitle]="'Here is what needs your attention today.' | t">
       @if (auth.can('contract.create')) {
-        <a mat-flat-button routerLink="/contracts/new"><mat-icon>add</mat-icon>New contract</a>
+        <a mat-flat-button routerLink="/contracts/new"><mat-icon>add</mat-icon>{{ 'New contract' | t }}</a>
       }
     </cms-page-header>
 
     @if (data.error()) {
-      <div class="callout tone-danger"><mat-icon>error</mat-icon>Could not load the dashboard.</div>
+      <div class="callout tone-danger"><mat-icon>error</mat-icon>{{ 'Could not load the dashboard.' | t }}</div>
     }
 
     <section class="grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -43,12 +44,12 @@ const BAR: Record<string, string> = {
         <a [routerLink]="card.link" [queryParams]="card.query" class="card card-interactive stagger group relative overflow-hidden p-5" [style.--i]="i">
           <div class="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full opacity-60 blur-2xl transition-opacity group-hover:opacity-100" [class]="card.glow"></div>
           <div class="relative flex items-start justify-between">
-            <span class="text-sm font-medium text-muted">{{ card.label }}</span>
+            <span class="text-sm font-medium text-muted">{{ card.label | t }}</span>
             <span class="flex size-10 items-center justify-center rounded-xl" [class]="card.tone"><mat-icon>{{ card.icon }}</mat-icon></span>
           </div>
           <p class="relative mt-4 text-4xl font-semibold tracking-tight text-ink tabular-nums" [cmsCountUp]="card.value"></p>
           <p class="relative mt-1 flex items-center gap-1 text-xs text-muted">
-            {{ card.hint }}<mat-icon class="!size-3.5 !text-[14px] opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100">arrow_forward</mat-icon>
+            {{ card.hint | t }}<mat-icon class="!size-3.5 !text-[14px] opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100">arrow_forward</mat-icon>
           </p>
         </a>
       } @empty {
@@ -61,8 +62,8 @@ const BAR: Record<string, string> = {
     <div class="mt-6 grid gap-6 xl:grid-cols-3">
       <section class="card stagger overflow-hidden xl:col-span-2" style="--i: 4">
         <header class="flex items-center justify-between border-b border-line-soft px-5 py-4">
-          <h2 class="font-semibold">Recently updated</h2>
-          <a routerLink="/contracts" class="text-sm font-medium text-accent hover:underline">View all</a>
+          <h2 class="font-semibold">{{ 'Recently updated' | t }}</h2>
+          <a routerLink="/contracts" class="text-sm font-medium text-accent hover:underline">{{ 'View all' | t }}</a>
         </header>
         @if (data.isLoading() && !data.value()) {
           <cms-skeleton [rows]="5" />
@@ -82,7 +83,7 @@ const BAR: Record<string, string> = {
             </li>
           } @empty {
             @if (!data.isLoading()) {
-              <cms-empty icon="description" title="No contracts yet" text="Create your first contract to get started." />
+              <cms-empty icon="description" [title]="'No contracts yet' | t" [text]="'Create your first contract to get started.' | t" />
             }
           }
         </ul>
@@ -90,9 +91,9 @@ const BAR: Record<string, string> = {
 
       <div class="space-y-6">
         <section class="card stagger p-5" style="--i: 5">
-          <h2 class="font-semibold">Portfolio</h2>
-          <p class="text-xs text-muted">{{ total() }} contracts you can see</p>
-          <div class="mt-4 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-subtle" role="img" [attr.aria-label]="'Status distribution of ' + total() + ' contracts'">
+          <h2 class="font-semibold">{{ 'Portfolio' | t }}</h2>
+          <p class="text-xs text-muted">{{ '{n} contracts you can see' | t: { n: total() } }}</p>
+          <div class="mt-4 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-subtle" role="img" [attr.aria-label]="'Status distribution of {n} contracts' | t: { n: total() }">
             @for (s of distribution(); track s.status) {
               <div class="h-full origin-left animate-[rise_0.6s_ease-out_both] transition-all first:rounded-l-full last:rounded-r-full" [style.width.%]="s.pct" [class]="s.bar" [title]="s.label + ': ' + s.count"></div>
             }
@@ -113,7 +114,7 @@ const BAR: Record<string, string> = {
         <section class="card stagger overflow-hidden" style="--i: 6">
           <header class="flex items-center gap-2 border-b border-line-soft px-5 py-4">
             <mat-icon class="text-seal-500">event_upcoming</mat-icon>
-            <h2 class="font-semibold">Ending in {{ data.value()?.expiryWindowDays ?? 30 }} days</h2>
+            <h2 class="font-semibold">{{ 'Ending in {n} days' | t: { n: data.value()?.expiryWindowDays ?? 30 } }}</h2>
           </header>
           <ul class="divide-y divide-line-soft">
             @for (c of data.value()?.expiringSoon; track c.id) {
@@ -121,13 +122,13 @@ const BAR: Record<string, string> = {
                 <a [routerLink]="['/contracts', c.id]" class="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-subtle">
                   <div class="min-w-0 flex-1">
                     <p class="truncate text-sm font-medium text-ink">{{ c.title }}</p>
-                    <p class="text-xs text-muted">{{ c.autoRenew ? 'Renews automatically' : 'Needs a renewal decision' }}</p>
+                    <p class="text-xs text-muted">{{ (c.autoRenew ? 'Renews automatically' : 'Needs a renewal decision') | t }}</p>
                   </div>
                   <span class="rounded-lg px-2 py-1 text-xs font-semibold tabular-nums" [class]="urgency(c.endDate)">{{ daysLabel(c.endDate) }}</span>
                 </a>
               </li>
             } @empty {
-              <li class="px-5 py-8 text-center text-sm text-muted">Nothing ends soon.</li>
+              <li class="px-5 py-8 text-center text-sm text-muted">{{ 'Nothing ends soon.' | t }}</li>
             }
           </ul>
         </section>
@@ -141,7 +142,7 @@ export class DashboardPage {
   protected readonly data = resource({ loader: () => this.api.dashboard() });
   protected readonly money = money;
   protected readonly date = date;
-  protected readonly today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  protected readonly today = computed(() => new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' }));
 
   protected readonly greeting = computed(() => {
     const h = new Date().getHours();
@@ -175,7 +176,7 @@ export class DashboardPage {
 
   protected daysLabel(end: string | null) {
     const d = daysUntil(end);
-    return d === null ? '—' : d <= 0 ? 'Today' : d === 1 ? '1 day' : `${d} days`;
+    return d === null ? '—' : d <= 0 ? t('Today') : d === 1 ? t('1 day') : t('{n} days', { n: d });
   }
 
   protected urgency(end: string | null) {

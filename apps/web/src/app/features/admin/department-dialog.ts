@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -9,26 +10,26 @@ import { Api } from '../../core/api.service';
 import { errorMessage } from '../../core/errors';
 
 @Component({
-  imports: [FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [TPipe, FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
   template: `
-    <h2 mat-dialog-title>New department</h2>
+    <h2 mat-dialog-title>{{ 'New department' | t }}</h2>
     <mat-dialog-content class="!pt-2">
       <mat-form-field class="w-full">
-        <mat-label>Name</mat-label>
+        <mat-label>{{ 'Name' | t }}</mat-label>
         <input matInput [ngModel]="name()" (ngModelChange)="setName($event)" cdkFocusInitial />
       </mat-form-field>
       <mat-form-field class="w-full">
-        <mat-label>Short code</mat-label>
+        <mat-label>{{ 'Short code' | t }}</mat-label>
         <input matInput [ngModel]="code()" (ngModelChange)="code.set($event.toUpperCase()); codeTouched = true" maxlength="16" />
-        <mat-hint>2–16 letters or digits, shown in lists (e.g. MKT)</mat-hint>
+        <mat-hint>{{ '2–16 letters or digits, shown in lists (e.g. MKT)' | t }}</mat-hint>
       </mat-form-field>
       @if (error()) {
         <div class="callout tone-danger mt-3" role="alert"><mat-icon>error</mat-icon>{{ error() }}</div>
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button [disabled]="busy() || name().trim().length < 2 || !validCode()" (click)="save()">Create</button>
+      <button mat-button mat-dialog-close>{{ 'Cancel' | t }}</button>
+      <button mat-flat-button [disabled]="busy() || name().trim().length < 2 || !validCode()" (click)="save()">{{ 'Create' | t }}</button>
     </mat-dialog-actions>
   `,
 })

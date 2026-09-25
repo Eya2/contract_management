@@ -12,5 +12,5 @@ apps/api/storage/
 # Generated Prisma client
 apps/api/src/generated/
 
-# Local Claude Code / editor config
+# Local editor and tooling config
 .claude/

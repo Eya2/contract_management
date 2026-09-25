@@ -1,10 +1,12 @@
 import { Component, input } from '@angular/core';
+import { TPipe } from '../core/i18n';
 
 /** Shimmering placeholder rows shown while data loads. */
 @Component({
+  imports: [TPipe],
   selector: 'cms-skeleton',
   template: `
-    <div class="space-y-3 p-5" aria-busy="true" aria-label="Loading">
+    <div class="space-y-3 p-5" aria-busy="true" [attr.aria-label]="'Loading' | t">
       @for (r of rowsArray(); track $index) {
         <div class="flex items-center gap-4">
           <div class="skeleton size-9 shrink-0 rounded-full"></div>

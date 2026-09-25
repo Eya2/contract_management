@@ -9,8 +9,12 @@ import { runWithContext } from '../src/common/context/request-context.js';
 import type { Prisma } from '../src/generated/prisma/client.js';
 import type { Role } from '../src/generated/prisma/enums.js';
 import { prisma } from '../src/lib/prisma.js';
+import { randomBytes } from 'node:crypto';
+import { sha256Hex } from '../src/lib/storage.js';
 import { hashPassword } from '../src/modules/auth/password.js';
 import { contractService } from '../src/modules/contracts/contract.service.js';
+import { signingService } from '../src/modules/signing/signing.service.js';
+import { approvalService } from '../src/modules/workflow/approval.service.js';
 
 export const DEMO_PASSWORD = 'Demo1234!';
 
@@ -57,7 +61,7 @@ async function main() {
   await seedWorkflowTemplates();
   const counterparties = await seedCounterparties();
   const ndaTemplateId = await seedContractTemplate();
-  const created = await seedDemoContracts(counterparties, ndaTemplateId);
+  const created = (await seedDemoContracts(counterparties, ndaTemplateId)) + (await seedLifecycleStories(counterparties));
 
   console.log(
     `Seeded ${departments.length} departments, ${users.length} users (password: ${DEMO_PASSWORD}), ` +
@@ -140,6 +144,9 @@ const counterpartySeeds = [
   { name: 'Acme Cloud Ltd', email: 'contracts@acme-cloud.example', contactName: 'Jordan Blake', registrationNumber: 'GB-0931442' },
   { name: 'Globex Corporation', email: 'legal@globex.example', contactName: 'Mina Park', registrationNumber: 'US-7781203' },
   { name: 'Initech Office Supplies', email: 'sales@initech.example', contactName: 'Peter Gibbons', registrationNumber: 'US-5510987' },
+  { name: 'Northwind Traders', email: 'procurement@northwind.example', contactName: 'Ana Trujillo', registrationNumber: 'FR-81234567' },
+  { name: 'Contoso Analytics', email: 'legal@contoso.example', contactName: 'Diego Roel', registrationNumber: 'IE-3345120' },
+  { name: 'Fabrikam Consulting', email: 'partners@fabrikam.example', contactName: 'Hanna Moos', registrationNumber: 'DE-HRB-99120' },
 ] as const;
 
 async function seedCounterparties() {
@@ -285,6 +292,179 @@ async function seedDemoContracts(counterparties: Map<string, string>, ndaTemplat
     await runWithContext({ requestId: 'seed', user: principal }, () => contractService.create(principal, demo.body, null));
     created++;
   }
+  return created;
+}
+
+// -----------------------------------------------------------------------------
+//  Lifecycle stories: contracts taken through the real workflow services, so
+//  each one has a genuine timeline, approval trail, signatures and audit log.
+// -----------------------------------------------------------------------------
+
+type Principal = { id: string; email: string; role: Role; departmentId: string };
+
+async function as(email: string): Promise<Principal> {
+  const u = await prisma.user.findUniqueOrThrow({ where: { email } });
+  return { id: u.id, email: u.email, role: u.role, departmentId: u.departmentId };
+}
+
+/** Runs `fn` as `user`, the way a request would (so audit entries name them). */
+function act<T>(user: Principal, fn: () => Promise<T>): Promise<T> {
+  return runWithContext({ requestId: 'seed', ip: '127.0.0.1', userAgent: 'seed script', user }, fn);
+}
+
+/** Approves every pending step of a contract's current request, stage after stage. */
+async function approveAll(contractId: string) {
+  for (let guard = 0; guard < 10; guard++) {
+    const step = await prisma.approvalStep.findFirst({ where: { status: 'PENDING', request: { contractId, status: 'IN_PROGRESS' } }, orderBy: { stage: 'asc' } });
+    if (!step) return;
+    const approver = await prisma.user.findFirstOrThrow({
+      where: step.assigneeId
+        ? { id: step.assigneeId }
+        : { role: step.approverRole, isActive: true, ...(step.approverDepartmentId ? { departmentId: step.approverDepartmentId } : {}), NOT: { ownedContracts: { some: { id: contractId } } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    const principal = { id: approver.id, email: approver.email, role: approver.role, departmentId: approver.departmentId };
+    await act(principal, () => approvalService.decide(principal, step.id, 'APPROVED', 'Looks good.'));
+  }
+}
+
+async function seedLifecycleStories(counterparties: Map<string, string>) {
+  const sami = await as('sales@contracthub.dev');
+  const sarah = await as('sales.manager@contracthub.dev');
+  const nour = await as('procurement@contracthub.dev');
+  const leila = await as('legal@contracthub.dev');
+  let created = 0;
+
+  const story = async (owner: Principal, body: Parameters<typeof contractService.create>[1], then: (id: string) => Promise<void>) => {
+    if (await prisma.contract.findFirst({ where: { title: body.title } })) return;
+    const contract = await act(owner, () => contractService.create(owner, body, null));
+    await then(contract.id);
+    created++;
+  };
+
+  // In review: the manager approved; Legal and Finance are deciding in parallel.
+  await story(
+    sami,
+    {
+      title: 'Northwind distribution agreement',
+      type: 'CLIENT',
+      counterpartyId: counterparties.get('Northwind Traders')!,
+      value: '120000.00',
+      currency: 'EUR',
+      startDate: '2027-01-01',
+      endDate: '2028-12-31',
+      autoRenew: false,
+      clauses: [
+        { key: 'territory', heading: 'Territory', body: 'Northwind distributes the products exclusively in France, Belgium and Luxembourg.' },
+        { key: 'volumes', heading: 'Minimum volumes', body: 'Northwind commits to purchase at least 10,000 units per year.' },
+        { key: 'payment', heading: 'Payment terms', body: 'Invoices are payable within 45 days of issue.' },
+      ],
+    },
+    async (id) => {
+      await act(sami, () => approvalService.submit(sami, id, 'Strategic account, please prioritise.'));
+      const step = await prisma.approvalStep.findFirstOrThrow({ where: { status: 'PENDING', request: { contractId: id } } });
+      await act(sarah, () => approvalService.decide(sarah, step.id, 'APPROVED', 'Volumes validated with the sales plan.'));
+    },
+  );
+
+  // Rejected by Legal, with the reason on record: ready to be revised.
+  await story(
+    sami,
+    {
+      title: 'Contoso data processing addendum',
+      type: 'NDA',
+      counterpartyId: counterparties.get('Contoso Analytics')!,
+      currency: 'USD',
+      startDate: '2026-11-01',
+      endDate: '2027-10-31',
+      autoRenew: false,
+      clauses: [
+        { key: 'purpose', heading: 'Purpose', body: 'Contoso processes customer usage data to produce monthly analytics reports.' },
+        { key: 'transfers', heading: 'International transfers', body: 'Data may be transferred to any Contoso affiliate.' },
+      ],
+    },
+    async (id) => {
+      await act(sami, () => approvalService.submit(sami, id));
+      const step = await prisma.approvalStep.findFirstOrThrow({ where: { status: 'PENDING', request: { contractId: id } } });
+      await act(leila, () =>
+        approvalService.decide(leila, step.id, 'REJECTED', 'Unrestricted transfers to "any affiliate" are not acceptable. Limit them to the EEA or add standard contractual clauses.'),
+      );
+    },
+  );
+
+  // Approved, waiting for signatures.
+  await story(
+    nour,
+    {
+      title: 'Fabrikam process audit',
+      type: 'VENDOR',
+      counterpartyId: counterparties.get('Fabrikam Consulting')!,
+      value: '9500.00',
+      currency: 'EUR',
+      startDate: '2026-11-15',
+      endDate: '2027-02-15',
+      autoRenew: false,
+      clauses: [
+        { key: 'scope', heading: 'Scope', body: 'Fabrikam audits the purchase-to-pay process and delivers a written report with recommendations.' },
+        { key: 'fees', heading: 'Fees', body: 'Fixed fee of 9,500 EUR, payable on delivery of the final report.' },
+      ],
+    },
+    async (id) => {
+      await act(nour, () => approvalService.submit(nour, id));
+      await approveAll(id);
+      const omar = await as('procurement.manager@contracthub.dev');
+      await act(nour, () =>
+        signingService.setSigners(nour, id, {
+          signers: [
+            { userId: omar.id, signingOrder: 1 },
+            { name: 'Hanna Moos', email: 'partners@fabrikam.example', signingOrder: 2 },
+          ],
+        }),
+      );
+    },
+  );
+
+  // Fully signed and in force: approvals, both signatures and the certificate.
+  await story(
+    sami,
+    {
+      title: 'Fabrikam sales training 2026',
+      type: 'VENDOR',
+      counterpartyId: counterparties.get('Fabrikam Consulting')!,
+      value: '14500.00',
+      currency: 'EUR',
+      startDate: new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10),
+      endDate: new Date(Date.now() + 150 * 86_400_000).toISOString().slice(0, 10),
+      autoRenew: false,
+      clauses: [
+        { key: 'scope', heading: 'Scope', body: 'Six on-site training days on consultative selling for the Sales team.' },
+        { key: 'fees', heading: 'Fees', body: '14,500 EUR, invoiced in two instalments.' },
+        { key: 'cancellation', heading: 'Cancellation', body: 'A session cancelled less than 10 days in advance is billed at 50%.' },
+      ],
+    },
+    async (id) => {
+      await act(sami, () => approvalService.submit(sami, id));
+      await approveAll(id);
+      await act(sami, () =>
+        signingService.setSigners(sami, id, {
+          signers: [
+            { userId: sarah.id, signingOrder: 1 },
+            { name: 'Hanna Moos', email: 'hanna.moos@fabrikam.example', signingOrder: 2 },
+          ],
+        }),
+      );
+      const { contentHash } = await act(sami, () => signingService.list(sami, id));
+      await act(sarah, () => signingService.signAsUser(sarah, id, { contentHash: contentHash!, method: 'TYPED', typedName: 'Sarah Collins', consent: true }));
+      // The external signer uses their emailed link; the seed reproduces that with a fresh link.
+      const external = await prisma.contractSigner.findFirstOrThrow({ where: { contractId: id, userId: null } });
+      const token = randomBytes(32).toString('base64url');
+      await prisma.contractSigner.update({ where: { id: external.id }, data: { accessTokenHash: sha256Hex(token), accessTokenExpiresAt: new Date(Date.now() + 86_400_000) } });
+      await runWithContext({ requestId: 'seed', ip: '203.0.113.24', userAgent: 'Mozilla/5.0 (Windows NT 10.0) Firefox/135.0' }, () =>
+        signingService.signByToken(token, { contentHash: contentHash!, method: 'TYPED', typedName: 'Hanna Moos', consent: true }),
+      );
+    },
+  );
+
   return created;
 }
 

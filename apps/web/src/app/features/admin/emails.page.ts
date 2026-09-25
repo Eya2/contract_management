@@ -1,4 +1,5 @@
 import { Component, inject, resource, signal } from '@angular/core';
+import { TPipe, t } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -18,11 +19,11 @@ const STATUS: Record<string, { label: string; cls: string; icon: string }> = {
 
 /** Where did the emails go? The outbox, with errors and a retry button. */
 @Component({
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, PageHeader, Skeleton, EmptyState],
+  imports: [TPipe, MatButtonModule, MatIconModule, MatTooltipModule, PageHeader, Skeleton, EmptyState],
   template: `
-    <cms-page-header eyebrow="Administration" title="Email delivery" subtitle="Every email the app sends (approvals, signing links, reminders, password resets) and what happened to it.">
-      <button mat-stroked-button (click)="data.reload()"><mat-icon>refresh</mat-icon>Refresh</button>
-      <button mat-flat-button [disabled]="busy() || !((data.value()?.counts?.FAILED ?? 0) + (data.value()?.counts?.PENDING ?? 0))" (click)="retry()"><mat-icon>send</mat-icon>Retry failed &amp; queued</button>
+    <cms-page-header [eyebrow]="'Administration' | t" [title]="'Email delivery' | t" [subtitle]="'Every email the app sends (approvals, signing links, reminders, password resets) and what happened to it.' | t">
+      <button mat-stroked-button (click)="data.reload()"><mat-icon>refresh</mat-icon>{{ 'Refresh' | t }}</button>
+      <button mat-flat-button [disabled]="busy() || !((data.value()?.counts?.FAILED ?? 0) + (data.value()?.counts?.PENDING ?? 0))" (click)="retry()"><mat-icon>send</mat-icon>{{ 'Retry failed and queued' | t }}</button>
     </cms-page-header>
 
     @if (data.value(); as d) {
@@ -31,13 +32,13 @@ const STATUS: Record<string, { label: string; cls: string; icon: string }> = {
           <div class="flex items-start gap-3">
             <span class="flex size-10 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><mat-icon>dns</mat-icon></span>
             <div class="min-w-0 flex-1">
-              <p class="text-xs text-muted">Mail server</p>
+              <p class="text-xs text-muted">{{ 'Mail server' | t }}</p>
               <p class="font-mono text-sm font-medium text-ink">{{ d.smtp.host }}:{{ d.smtp.port }}</p>
               <p class="mt-1 text-xs text-muted">
                 @if (d.smtp.authenticated) {
                   Real delivery (authenticated SMTP).
                 } @else if (d.smtp.host === 'localhost') {
-                  Local test inbox (Mailpit). Emails appear at <a class="text-accent underline" href="http://localhost:8025" target="_blank" rel="noopener">localhost:8025</a> and never reach real people.
+                  Local test inbox (Mailpit). Emails appear at <a class="text-accent underline" href="http://localhost:8025" target="_blank" rel="noopener">{{ 'localhost:8025' | t }}</a> and never reach real people.
                 } @else {
                   SMTP without authentication.
                 }
@@ -47,10 +48,10 @@ const STATUS: Record<string, { label: string; cls: string; icon: string }> = {
         </section>
         @for (s of ['COMPLETED', 'FAILED']; track s; let i = $index) {
           <section class="card stagger p-5" [style.--i]="i + 1">
-            <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="!size-4 !text-[16px]" [class]="status[s]!.cls">{{ status[s]!.icon }}</mat-icon>{{ status[s]!.label }}</p>
+            <p class="flex items-center gap-1.5 text-sm text-muted"><mat-icon class="!size-4 !text-[16px]" [class]="status[s]!.cls">{{ status[s]!.icon }}</mat-icon>{{ status[s]!.label | t }}</p>
             <p class="mt-2 text-3xl font-semibold text-ink tabular-nums">{{ count(s) }}</p>
             @if (s === 'FAILED' && d.counts.PENDING) {
-              <p class="mt-1 text-xs text-muted">{{ d.counts.PENDING }} queued</p>
+              <p class="mt-1 text-xs text-muted">{{ '{n} queued' | t: { n: d.counts.PENDING } }}</p>
             }
           </section>
         }
@@ -58,7 +59,7 @@ const STATUS: Record<string, { label: string; cls: string; icon: string }> = {
 
       <div class="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-subtle p-1 sm:w-fit">
         @for (f of filters; track f.value) {
-          <button class="rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-muted transition-all" [class]="filter() === f.value ? '!bg-card !text-ink shadow-sm ring-1 ring-line' : ''" (click)="filter.set(f.value)">{{ f.label }}</button>
+          <button class="rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-muted transition-all" [class]="filter() === f.value ? '!bg-card !text-ink shadow-sm ring-1 ring-line' : ''" (click)="filter.set(f.value)">{{ f.label | t }}</button>
         }
       </div>
 
@@ -66,25 +67,25 @@ const STATUS: Record<string, { label: string; cls: string; icon: string }> = {
         <ul class="divide-y divide-line-soft">
           @for (j of d.items; track j.id; let i = $index) {
             <li class="stagger flex flex-wrap items-start gap-4 px-5 py-3.5" [style.--i]="i">
-              <mat-icon class="mt-0.5" [class]="status[j.status]!.cls" [matTooltip]="status[j.status]!.label">{{ status[j.status]!.icon }}</mat-icon>
+              <mat-icon class="mt-0.5" [class]="status[j.status]!.cls" [matTooltip]="status[j.status]!.label | t">{{ status[j.status]!.icon }}</mat-icon>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium text-ink">{{ j.subject }}</p>
-                <p class="text-xs text-muted">to {{ j.to }} · {{ ago(j.createdAt) }}</p>
+                <p class="text-xs text-muted">{{ 'to {email}' | t: { email: j.to } }} · {{ ago(j.createdAt) }}</p>
                 @if (j.lastError) {
                   <p class="mt-1 rounded-md bg-rose-50 px-2 py-1 font-mono text-[11px] text-rose-700 dark:bg-rose-400/10 dark:text-rose-300">{{ j.lastError }}</p>
                 }
               </div>
               <div class="text-right text-xs text-muted">
                 @if (j.status === 'COMPLETED') {
-                  <p>Sent {{ dateTime(j.completedAt) }}</p>
+                  <p>{{ 'Sent {date}' | t: { date: dateTime(j.completedAt) } }}</p>
                 } @else if (j.status === 'PENDING') {
-                  <p>Next try {{ dateTime(j.runAt) }}</p>
+                  <p>{{ 'Next try {date}' | t: { date: dateTime(j.runAt) } }}</p>
                 }
-                <p>Attempt {{ j.attempts }}/{{ j.maxAttempts }}</p>
+                <p>{{ 'Attempt {n}/{max}' | t: { n: j.attempts, max: j.maxAttempts } }}</p>
               </div>
             </li>
           } @empty {
-            <cms-empty icon="outgoing_mail" title="No emails here" />
+            <cms-empty icon="outgoing_mail" [title]="'No emails here' | t" />
           }
         </ul>
       </div>
@@ -117,7 +118,7 @@ export class EmailsPage {
     this.busy.set(true);
     try {
       const { retried } = await this.api.retryEmails();
-      this.toast.success(`${retried} email${retried === 1 ? '' : 's'} queued again`);
+      this.toast.success(t('{n} email(s) queued again', { n: retried }));
       setTimeout(() => this.data.reload(), 6000);
       this.data.reload();
     } catch (err) {

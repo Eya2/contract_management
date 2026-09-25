@@ -21,6 +21,8 @@ export interface AuthResult {
   /** Raw refresh token: goes into the httpOnly cookie, never into a response body. */
   refreshToken: string;
   refreshTokenExpiresAt: Date;
+  /** "Keep me signed in": decides the cookie type and the session length. */
+  persistent: boolean;
   user: AuthUser;
 }
 
@@ -34,7 +36,7 @@ const ROTATION_GRACE_MS = 10_000;
 const INVALID_CREDENTIALS = 'Invalid email or password';
 
 export const authService = {
-  async login(email: string, password: string): Promise<AuthResult> {
+  async login(email: string, password: string, remember = false): Promise<AuthResult> {
     const user = await userRepository.findByEmailWithSecret(email);
 
     const valid = user
@@ -54,7 +56,7 @@ export const authService = {
 
     const principal = toPrincipal(user);
     return prisma.$transaction(async (tx) => {
-      const { refreshTokenId: _, ...issued } = await issueTokens(principal, randomUUID(), tx);
+      const { refreshTokenId: _, ...issued } = await issueTokens(principal, randomUUID(), remember, tx);
       await userRepository.touchLastLogin(user.id, tx);
       await recordAudit({ action: 'AUTH_LOGIN', entityType: 'user', entityId: user.id, userId: user.id }, tx);
       return issued;
@@ -103,7 +105,7 @@ export const authService = {
 
     const principal = toPrincipal(stored.user);
     return prisma.$transaction(async (tx) => {
-      const { refreshTokenId, ...issued } = await issueTokens(principal, stored.familyId, tx);
+      const { refreshTokenId, ...issued } = await issueTokens(principal, stored.familyId, stored.persistent, tx);
       const won = await refreshTokenRepository.markRotated(stored.id, refreshTokenId, tx);
       // A concurrent refresh rotated this token first; throwing rolls back our new token.
       if (!won) throw new UnauthorizedError('Refresh token is no longer valid');
@@ -135,15 +137,17 @@ function toPrincipal(user: { id: string; email: string; role: AuthUser['role']; 
 async function issueTokens(
   user: AuthUser,
   familyId: string,
+  persistent: boolean,
   tx: DbClient,
 ): Promise<AuthResult & { refreshTokenId: string }> {
   const ctx = getRequestContext();
   const refreshToken = generateRefreshToken();
-  const refreshTokenExpiresAt = refreshTokenExpiry();
+  const refreshTokenExpiresAt = refreshTokenExpiry(persistent);
   const record = await refreshTokenRepository.create(
     {
       userId: user.id,
       familyId,
+      persistent,
       tokenHash: hashRefreshToken(refreshToken),
       expiresAt: refreshTokenExpiresAt,
       ipAddress: ctx?.ip,
@@ -155,6 +159,7 @@ async function issueTokens(
     accessToken: signAccessToken(user),
     refreshToken,
     refreshTokenExpiresAt,
+    persistent,
     refreshTokenId: record.id,
     user,
   };

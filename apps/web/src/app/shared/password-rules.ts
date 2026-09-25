@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { TPipe } from '../core/i18n';
 
 /** The password rules the API enforces, shown live while typing. */
 export function passwordOk(p: string): boolean {
@@ -8,12 +9,12 @@ export function passwordOk(p: string): boolean {
 
 @Component({
   selector: 'cms-password-rules',
-  imports: [MatIconModule],
+  imports: [TPipe, MatIconModule],
   template: `
     <ul class="mt-1 mb-3 space-y-1 text-xs" aria-live="polite">
       @for (r of rules(); track r.label) {
         <li class="flex items-center gap-1.5 transition-colors" [class]="r.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted'">
-          <mat-icon class="!size-4 !text-[16px]">{{ r.ok ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>{{ r.label }}
+          <mat-icon class="!size-4 !text-[16px]">{{ r.ok ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>{{ r.label | t }}
         </li>
       }
     </ul>

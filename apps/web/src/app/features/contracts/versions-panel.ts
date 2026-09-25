@@ -1,27 +1,31 @@
 import { Component, computed, inject, input, linkedSignal, resource } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { Api } from '../../core/api.service';
 import { dateTime, fullName, humanize } from '../../shared/format';
+import { previewContract } from '../../shared/pdf-preview-dialog';
 
 /** The version history, and a comparison between any two versions. */
 @Component({
   selector: 'cms-versions-panel',
-  imports: [FormsModule, MatButtonModule, MatIconModule, MatSelectModule],
+  imports: [TPipe, FormsModule, MatButtonModule, MatIconModule, MatSelectModule],
   template: `
     <div class="grid gap-6 lg:grid-cols-5">
       <section class="card lg:col-span-2">
-        <h3 class="border-b border-line-soft px-5 py-3 font-semibold">History</h3>
+        <h3 class="border-b border-line-soft px-5 py-3 font-semibold">{{ 'History' | t }}</h3>
         <ol class="divide-y divide-line-soft">
           @for (v of versions.value(); track v.id) {
             <li class="px-5 py-3">
               <div class="flex items-center gap-2">
                 <span class="rounded bg-subtle-strong px-1.5 py-0.5 text-xs font-semibold text-body">v{{ v.versionNumber }}</span>
-                <span class="flex-1 truncate text-sm font-medium">{{ v.changeSummary || 'No summary' }}</span>
+                <span class="flex-1 truncate text-sm font-medium">{{ v.changeSummary || ('No summary' | t) }}</span>
+                <button mat-icon-button (click)="preview(v.versionNumber)" [attr.aria-label]="'Preview version {n}' | t: { n: v.versionNumber }"><mat-icon>visibility</mat-icon></button>
                 @if (v.file) {
-                  <button mat-icon-button (click)="download(v.versionNumber, v.file.originalName)" [attr.aria-label]="'Download document of version ' + v.versionNumber">
+                  <button mat-icon-button (click)="download(v.versionNumber, v.file.originalName)" [attr.aria-label]="'Download document of version {n}' | t: { n: v.versionNumber }">
                     <mat-icon>download</mat-icon>
                   </button>
                 }
@@ -34,24 +38,24 @@ import { dateTime, fullName, humanize } from '../../shared/format';
 
       <section class="card p-5 lg:col-span-3">
         <div class="mb-4 flex flex-wrap items-center gap-2">
-          <h3 class="mr-auto font-semibold">Compare</h3>
-          <mat-select class="!w-24" [(ngModel)]="from" aria-label="From version">
+          <h3 class="mr-auto font-semibold">{{ 'Compare' | t }}</h3>
+          <mat-select class="!w-24" [(ngModel)]="from" [attr.aria-label]="'From version' | t">
             @for (v of numbers(); track v) {
               <mat-option [value]="v">v{{ v }}</mat-option>
             }
           </mat-select>
           <mat-icon class="text-faint">arrow_forward</mat-icon>
-          <mat-select class="!w-24" [(ngModel)]="to" aria-label="To version">
+          <mat-select class="!w-24" [(ngModel)]="to" [attr.aria-label]="'To version' | t">
             @for (v of numbers(); track v) {
               <mat-option [value]="v">v{{ v }}</mat-option>
             }
           </mat-select>
         </div>
         @if (numbers().length < 2) {
-          <p class="text-sm text-muted">Only one version so far.</p>
+          <p class="text-sm text-muted">{{ 'Only one version so far.' | t }}</p>
         } @else if (diff.value(); as d) {
           @if (!d.fields.length && !d.clauses.added.length && !d.clauses.removed.length && !d.clauses.changed.length && !d.documentChanged) {
-            <p class="text-sm text-muted">No differences.</p>
+            <p class="text-sm text-muted">{{ 'No differences.' | t }}</p>
           }
           @for (f of d.fields; track f.field) {
             <div class="mb-2 grid grid-cols-[8rem_1fr] gap-2 text-sm">
@@ -60,7 +64,7 @@ import { dateTime, fullName, humanize } from '../../shared/format';
             </div>
           }
           @if (d.documentChanged) {
-            <p class="mb-2 text-sm"><mat-icon class="!size-4 align-middle !text-[16px]">description</mat-icon> The document changed.</p>
+            <p class="mb-2 text-sm"><mat-icon class="!size-4 align-middle !text-[16px]">description</mat-icon> {{ 'The document changed.' | t }}</p>
           }
           @for (c of d.clauses.added; track c.key) {
             <div class="mt-3 rounded-lg border-l-4 border-emerald-400 bg-emerald-50 p-3 text-sm dark:bg-emerald-400/10">
@@ -78,13 +82,13 @@ import { dateTime, fullName, humanize } from '../../shared/format';
             <div class="mt-3 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-3 text-sm dark:bg-amber-400/10">
               <p class="font-semibold text-amber-900 dark:text-amber-200">~ {{ c.to.heading }}</p>
               <div class="mt-1 grid gap-2 sm:grid-cols-2">
-                <p class="rounded bg-card/70 p-2 whitespace-pre-line text-muted"><span class="block text-xs font-semibold">Before</span>{{ c.from.body }}</p>
-                <p class="rounded bg-card p-2 whitespace-pre-line text-ink"><span class="block text-xs font-semibold">After</span>{{ c.to.body }}</p>
+                <p class="rounded bg-card/70 p-2 whitespace-pre-line text-muted"><span class="block text-xs font-semibold">{{ 'Before' | t }}</span>{{ c.from.body }}</p>
+                <p class="rounded bg-card p-2 whitespace-pre-line text-ink"><span class="block text-xs font-semibold">{{ 'After' | t }}</span>{{ c.to.body }}</p>
               </div>
             </div>
           }
           @if (d.clauses.reordered) {
-            <p class="mt-3 text-xs text-muted">Clauses were also reordered.</p>
+            <p class="mt-3 text-xs text-muted">{{ 'Clauses were also reordered.' | t }}</p>
           }
         }
       </section>
@@ -95,6 +99,9 @@ export class VersionsPanel {
   private readonly api = inject(Api);
   readonly contractId = input.required<string>();
   readonly currentVersion = input.required<number>();
+  readonly reference = input('');
+  readonly title = input('');
+  private readonly dialog = inject(MatDialog);
 
   protected readonly versions = resource({
     params: () => ({ id: this.contractId(), v: this.currentVersion() }),
@@ -110,6 +117,10 @@ export class VersionsPanel {
   protected readonly fullName = fullName;
   protected readonly dateTime = dateTime;
   protected readonly humanize = humanize;
+
+  protected preview(n: number) {
+    previewContract(this.dialog, { id: this.contractId(), referenceNumber: this.reference(), title: this.title() }, n);
+  }
 
   protected download(n: number, name: string) {
     void this.api.download(`/api/contracts/${this.contractId()}/versions/${n}/document`, name);

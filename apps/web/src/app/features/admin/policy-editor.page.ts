@@ -1,4 +1,5 @@
 import { Component, inject, input, OnInit, signal } from '@angular/core';
+import { TPipe, t } from '../../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -62,42 +63,42 @@ const OPS: Record<string, { value: string; label: string }[]> = {
 let uid = 0;
 
 @Component({
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule, PageHeader],
+  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule, PageHeader],
   template: `
-    <a routerLink="/admin/policies" class="mb-5 inline-flex items-center gap-1 text-sm font-medium text-muted hover:text-ink"><mat-icon class="!size-[18px] !text-[18px]">arrow_back</mat-icon>Approval policies</a>
-    <cms-page-header [title]="id() ? 'Edit policy' : 'New policy'" subtitle="Contracts already in review keep the steps they started with; changes apply to new submissions.">
+    <a routerLink="/admin/policies" class="mb-5 inline-flex items-center gap-1 text-sm font-medium text-muted hover:text-ink"><mat-icon class="!size-[18px] !text-[18px]">arrow_back</mat-icon>{{ 'Approval policies' | t }}</a>
+    <cms-page-header [title]="(id() ? 'Edit policy' : 'New policy') | t" [subtitle]="'Contracts already in review keep the steps they started with; changes apply to new submissions.' | t">
       @if (id() && isActive()) {
-        <button mat-stroked-button class="!text-rose-600 dark:!text-rose-400" (click)="deactivate()"><mat-icon>block</mat-icon>Deactivate</button>
+        <button mat-stroked-button class="!text-rose-600 dark:!text-rose-400" (click)="deactivate()"><mat-icon>block</mat-icon>{{ 'Deactivate' | t }}</button>
       }
-      <button mat-flat-button [disabled]="busy()" (click)="save()"><mat-icon>save</mat-icon>Save policy</button>
+      <button mat-flat-button [disabled]="busy()" (click)="save()"><mat-icon>save</mat-icon>{{ 'Save policy' | t }}</button>
     </cms-page-header>
 
     <div class="grid gap-6 xl:grid-cols-3">
       <section class="card space-y-1 p-5 xl:col-span-1 xl:self-start">
-        <h2 class="mb-3 font-semibold">Scope</h2>
-        <mat-form-field class="w-full"><mat-label>Name</mat-label><input matInput [(ngModel)]="name" /></mat-form-field>
-        <mat-form-field class="w-full"><mat-label>Description</mat-label><textarea matInput rows="2" [(ngModel)]="description"></textarea></mat-form-field>
+        <h2 class="mb-3 font-semibold">{{ 'Scope' | t }}</h2>
+        <mat-form-field class="w-full"><mat-label>{{ 'Name' | t }}</mat-label><input matInput [(ngModel)]="name" /></mat-form-field>
+        <mat-form-field class="w-full"><mat-label>{{ 'Description' | t }}</mat-label><textarea matInput rows="2" [(ngModel)]="description"></textarea></mat-form-field>
         <mat-form-field class="w-full">
-          <mat-label>Contract type</mat-label>
+          <mat-label>{{ 'Contract type' | t }}</mat-label>
           <mat-select [(ngModel)]="contractType">
-            <mat-option [value]="null">Any type</mat-option>
+            <mat-option [value]="null">{{ 'Any type' | t }}</mat-option>
             @for (t of types; track t) {
               <mat-option [value]="t">{{ humanize(t) }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
         <mat-form-field class="w-full">
-          <mat-label>Department</mat-label>
+          <mat-label>{{ 'Department' | t }}</mat-label>
           <mat-select [(ngModel)]="departmentId">
-            <mat-option [value]="null">Any department</mat-option>
+            <mat-option [value]="null">{{ 'Any department' | t }}</mat-option>
             @for (d of departments(); track d.id) {
               <mat-option [value]="d.id">{{ d.name }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
         <div class="flex items-center justify-between rounded-xl bg-subtle p-3">
-          <span class="text-sm font-medium text-ink">Active</span>
-          <mat-slide-toggle [(ngModel)]="isActive" aria-label="Active" />
+          <span class="text-sm font-medium text-ink">{{ 'Active' | t }}</span>
+          <mat-slide-toggle [(ngModel)]="isActive" [attr.aria-label]="'Active' | t" />
         </div>
       </section>
 
@@ -106,16 +107,16 @@ let uid = 0;
           <div class="card stagger p-5" [style.--i]="$index">
             <div class="mb-3 flex items-center gap-2">
               <span class="flex size-7 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-white">{{ stage }}</span>
-              <h3 class="font-semibold">Stage {{ stage }}</h3>
-              <span class="text-xs text-muted">{{ stepsIn(stage).length > 1 ? 'Steps run in parallel; all must approve' : '' }}</span>
-              <button mat-button class="!ml-auto" (click)="addStep(stage)"><mat-icon>add</mat-icon>Parallel step</button>
+              <h3 class="font-semibold">{{ 'Stage {n}' | t: { n: stage } }}</h3>
+              <span class="text-xs text-muted">{{ stepsIn(stage).length > 1 ? ('Steps run in parallel; all must approve' | t) : '' }}</span>
+              <button mat-button class="!ml-auto" (click)="addStep(stage)"><mat-icon>add</mat-icon>{{ 'Parallel step' | t }}</button>
             </div>
             @for (s of stepsIn(stage); track s.uid) {
               <div class="mb-3 rounded-xl border border-line p-4 last:mb-0">
                 <div class="grid gap-x-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <mat-form-field class="lg:col-span-2"><mat-label>Step name</mat-label><input matInput [(ngModel)]="s.name" placeholder="e.g. Legal review" /></mat-form-field>
+                  <mat-form-field class="lg:col-span-2"><mat-label>{{ 'Step name' | t }}</mat-label><input matInput [(ngModel)]="s.name" [placeholder]="'e.g. Legal review' | t" /></mat-form-field>
                   <mat-form-field>
-                    <mat-label>Approver</mat-label>
+                    <mat-label>{{ 'Approver' | t }}</mat-label>
                     <mat-select [(ngModel)]="s.approverRole">
                       @for (r of approverRoles; track r) {
                         <mat-option [value]="r">{{ humanize(r) }}</mat-option>
@@ -123,58 +124,58 @@ let uid = 0;
                     </mat-select>
                   </mat-form-field>
                   <mat-form-field>
-                    <mat-label>Who</mat-label>
+                    <mat-label>{{ 'Who' | t }}</mat-label>
                     <mat-select [(ngModel)]="s.approverScope">
-                      <mat-option value="ANY">Anyone with the role</mat-option>
-                      <mat-option value="CONTRACT_DEPARTMENT">Contract's department</mat-option>
+                      <mat-option value="ANY">{{ 'Anyone with the role' | t }}</mat-option>
+                      <mat-option value="CONTRACT_DEPARTMENT">{{ 'Contract’s department' | t }}</mat-option>
                     </mat-select>
                   </mat-form-field>
                   <mat-form-field>
-                    <mat-label>Escalate after (hours)</mat-label>
-                    <input matInput type="number" min="1" [(ngModel)]="s.escalateAfterHours" placeholder="Never" />
+                    <mat-label>{{ 'Escalate after (hours)' | t }}</mat-label>
+                    <input matInput type="number" min="1" [(ngModel)]="s.escalateAfterHours" [placeholder]="'Never' | t" />
                   </mat-form-field>
                   <mat-form-field>
-                    <mat-label>Applies</mat-label>
+                    <mat-label>{{ 'Applies' | t }}</mat-label>
                     <mat-select [(ngModel)]="s.mode">
-                      <mat-option value="always">Always</mat-option>
-                      <mat-option value="rule">Only if…</mat-option>
-                      <mat-option value="json">Advanced rule (JSON)</mat-option>
+                      <mat-option value="always">{{ 'Always' | t }}</mat-option>
+                      <mat-option value="rule">{{ 'Only if…' | t }}</mat-option>
+                      <mat-option value="json">{{ 'Advanced rule (JSON)' | t }}</mat-option>
                     </mat-select>
                   </mat-form-field>
                   <mat-form-field>
-                    <mat-label>Stage</mat-label>
+                    <mat-label>{{ 'Stage' | t }}</mat-label>
                     <mat-select [(ngModel)]="s.stage">
                       @for (n of stageChoices(); track n) {
-                        <mat-option [value]="n">Stage {{ n }}</mat-option>
+                        <mat-option [value]="n">{{ 'Stage {n}' | t: { n: n } }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
                   <div class="flex items-start justify-end">
-                    <button mat-icon-button class="!mt-1" (click)="removeStep(s.uid)" aria-label="Remove step"><mat-icon>delete</mat-icon></button>
+                    <button mat-icon-button class="!mt-1" (click)="removeStep(s.uid)" [attr.aria-label]="'Remove step' | t"><mat-icon>delete</mat-icon></button>
                   </div>
                 </div>
                 @if (s.mode === 'rule') {
                   <div class="mt-1 grid gap-x-3 rounded-xl bg-subtle p-3 pb-0 sm:grid-cols-3">
                     <mat-form-field>
-                      <mat-label>When</mat-label>
+                      <mat-label>{{ 'When' | t }}</mat-label>
                       <mat-select [(ngModel)]="s.field" (selectionChange)="s.op = opsFor(s.field)[0]!.value; s.value = ''">
                         @for (f of fields; track f.value) {
-                          <mat-option [value]="f.value">{{ f.label }}</mat-option>
+                          <mat-option [value]="f.value">{{ f.label | t }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
                     <mat-form-field>
-                      <mat-label>Condition</mat-label>
+                      <mat-label>{{ 'Condition' | t }}</mat-label>
                       <mat-select [(ngModel)]="s.op">
                         @for (o of opsFor(s.field); track o.value) {
-                          <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                          <mat-option [value]="o.value">{{ o.label | t }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
                     @switch (kindOf(s.field)) {
                       @case ('type') {
                         <mat-form-field>
-                          <mat-label>Type</mat-label>
+                          <mat-label>{{ 'Type' | t }}</mat-label>
                           <mat-select [(ngModel)]="s.value">
                             @for (t of types; track t) {
                               <mat-option [value]="t">{{ humanize(t) }}</mat-option>
@@ -184,32 +185,32 @@ let uid = 0;
                       }
                       @case ('boolean') {
                         <mat-form-field>
-                          <mat-label>Value</mat-label>
-                          <mat-select [(ngModel)]="s.value"><mat-option value="true">Yes</mat-option><mat-option value="false">No</mat-option></mat-select>
+                          <mat-label>{{ 'Value' | t }}</mat-label>
+                          <mat-select [(ngModel)]="s.value"><mat-option value="true">{{ 'Yes' | t }}</mat-option><mat-option value="false">{{ 'No' | t }}</mat-option></mat-select>
                         </mat-form-field>
                       }
                       @default {
                         <mat-form-field>
-                          <mat-label>Value</mat-label>
+                          <mat-label>{{ 'Value' | t }}</mat-label>
                           <input matInput [type]="kindOf(s.field) === 'number' ? 'number' : 'text'" [(ngModel)]="s.value" />
                         </mat-form-field>
                       }
                     }
                   </div>
-                  <p class="mt-2 text-xs text-muted">If the contract has no value yet, the step is kept (it is never skipped for missing data).</p>
+                  <p class="mt-2 text-xs text-muted">{{ 'If the contract has no value yet, the step is kept (it is never skipped for missing data).' | t }}</p>
                 }
                 @if (s.mode === 'json') {
                   <mat-form-field class="mt-1 w-full">
-                    <mat-label>Condition JSON</mat-label>
+                    <mat-label>{{ 'Condition JSON' | t }}</mat-label>
                     <textarea matInput rows="4" class="font-mono !text-xs" [(ngModel)]="s.json"></textarea>
-                    <mat-hint>e.g. {{ '{' }}"all": [{{ '{' }}"field": "value", "op": "gt", "value": 10000{{ '}' }}, {{ '{' }}"field": "type", "op": "eq", "value": "VENDOR"{{ '}' }}]{{ '}' }}</mat-hint>
+                    <mat-hint>{{ 'e.g.' | t }} {{ '{' }}"all": [{{ '{' }}"field": "value", "op": "gt", "value": 10000{{ '}' }}, {{ '{' }}"field": "type", "op": "eq", "value": "VENDOR"{{ '}' }}]{{ '}' }}</mat-hint>
                   </mat-form-field>
                 }
               </div>
             }
           </div>
         }
-        <button mat-stroked-button class="w-full !border-dashed" (click)="addStep(nextStage())"><mat-icon>playlist_add</mat-icon>Add stage {{ nextStage() }}</button>
+        <button mat-stroked-button class="w-full !border-dashed" (click)="addStep(nextStage())"><mat-icon>playlist_add</mat-icon>{{ 'Add stage {n}' | t: { n: nextStage() } }}</button>
         @if (error()) {
           <div class="callout tone-danger" role="alert"><mat-icon>error</mat-icon>{{ error() }}</div>
         }
@@ -300,11 +301,11 @@ export class PolicyEditorPage implements OnInit {
       try {
         return JSON.parse(s.json) as Condition;
       } catch {
-        throw new Error(`"${s.name}": the condition is not valid JSON`);
+        throw new Error(t('"{name}": the condition is not valid JSON', { name: s.name }));
       }
     }
     const kind = this.kindOf(s.field);
-    if (s.value === '') throw new Error(`"${s.name}": choose a value for the condition`);
+    if (s.value === '') throw new Error(t('"{name}": choose a value for the condition', { name: s.name }));
     const value = kind === 'number' ? Number(s.value) : kind === 'boolean' ? s.value === 'true' : kind === 'text' ? s.value.trim().toUpperCase() : s.value;
     return { field: s.field, op: s.op, value };
   }
@@ -331,7 +332,7 @@ export class PolicyEditorPage implements OnInit {
         isActive: this.isActive(),
         steps,
       });
-      this.toast.success('Policy saved');
+      this.toast.success(t('Policy saved'));
       await this.router.navigate(['/admin/policies', saved.id], { replaceUrl: true });
     } catch (err) {
       this.error.set(errorMessage(err));
@@ -344,7 +345,7 @@ export class PolicyEditorPage implements OnInit {
     try {
       await this.api.deactivatePolicy(this.id()!);
       this.isActive.set(false);
-      this.toast.success('Policy deactivated');
+      this.toast.success(t('Policy deactivated'));
     } catch (err) {
       this.toast.error(err);
     }

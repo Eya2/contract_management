@@ -1,4 +1,5 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { TPipe, locale, t } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
@@ -23,15 +24,15 @@ const ICONS: Record<string, string> = {
 
 /** Every notification, grouped by day, with "unread only" and paging. */
 @Component({
-  imports: [MatButtonModule, MatIconModule, PageHeader, EmptyState, Skeleton],
+  imports: [TPipe, MatButtonModule, MatIconModule, PageHeader, EmptyState, Skeleton],
   template: `
-    <cms-page-header title="Notifications" [subtitle]="counts.unread() ? counts.unread() + ' unread' : 'You are all caught up'">
+    <cms-page-header [title]="'Notifications' | t" [subtitle]="counts.unread() ? ('{n} unread' | t: { n: counts.unread() }) : ('You are all caught up' | t)">
       <div class="flex gap-1 rounded-xl bg-subtle p-1">
         @for (f of ['all', 'unread']; track f) {
-          <button class="rounded-lg px-3 py-1.5 text-sm font-medium capitalize text-muted transition-all" [class]="filter() === f ? '!bg-card !text-ink shadow-sm ring-1 ring-line' : ''" (click)="filter.set($any(f))">{{ f }}</button>
+          <button class="rounded-lg px-3 py-1.5 text-sm font-medium capitalize text-muted transition-all" [class]="filter() === f ? '!bg-card !text-ink shadow-sm ring-1 ring-line' : ''" (click)="filter.set($any(f))">{{ (f === 'all' ? 'All' : 'Unread') | t }}</button>
         }
       </div>
-      <button mat-stroked-button [disabled]="!counts.unread()" (click)="markAll()"><mat-icon>done_all</mat-icon>Mark all read</button>
+      <button mat-stroked-button [disabled]="!counts.unread()" (click)="markAll()"><mat-icon>done_all</mat-icon>{{ 'Mark all read' | t }}</button>
     </cms-page-header>
 
     <div class="card max-w-3xl overflow-hidden">
@@ -61,11 +62,11 @@ const ICONS: Record<string, string> = {
         </ul>
       } @empty {
         @if (!loading()) {
-          <cms-empty icon="notifications_off" [title]="filter() === 'unread' ? 'No unread notifications' : 'No notifications yet'" text="Approvals, signatures and renewals will show up here." />
+          <cms-empty icon="notifications_off" [title]="(filter() === 'unread' ? 'No unread notifications' : 'No notifications yet') | t" [text]="'Approvals, signatures and renewals will show up here.' | t" />
         }
       }
       @if (hasMore()) {
-        <div class="border-t border-line-soft p-3 text-center"><button mat-button [disabled]="loading()" (click)="load(true)">Load older</button></div>
+        <div class="border-t border-line-soft p-3 text-center"><button mat-button [disabled]="loading()" (click)="load(true)">{{ 'Load older' | t }}</button></div>
       }
     </div>
   `,
@@ -88,7 +89,7 @@ export class NotificationsPage implements OnInit {
     for (const n of this.items()) {
       if (this.filter() === 'unread' && n.readAt) continue;
       const d = new Date(n.createdAt).toDateString();
-      const label = d === today ? 'Today' : d === yesterday ? 'Yesterday' : new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const label = d === today ? t('Today') : d === yesterday ? t('Yesterday') : new Date(n.createdAt).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
       map.set(label, [...(map.get(label) ?? []), n]);
     }
     return [...map].map(([label, items]) => ({ label, items }));

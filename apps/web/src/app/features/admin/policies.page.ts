@@ -1,4 +1,5 @@
 import { Component, computed, inject, resource } from '@angular/core';
+import { TPipe } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
@@ -11,10 +12,10 @@ import { Skeleton } from '../../shared/skeleton';
 
 /** Approval policies with their steps drawn as a stage pipeline. */
 @Component({
-  imports: [RouterLink, MatButtonModule, MatIconModule, PageHeader, Skeleton, EmptyState],
+  imports: [TPipe, RouterLink, MatButtonModule, MatIconModule, PageHeader, Skeleton, EmptyState],
   template: `
-    <cms-page-header eyebrow="Administration" title="Approval policies" subtitle="Who approves what. The most specific active policy applies: type + department, then type, then department, then the default.">
-      <a mat-flat-button routerLink="/admin/policies/new"><mat-icon>add</mat-icon>New policy</a>
+    <cms-page-header [eyebrow]="'Administration' | t" [title]="'Approval policies' | t" [subtitle]="'Who approves what. The most specific active policy applies: type + department, then type, then department, then the default.' | t">
+      <a mat-flat-button routerLink="/admin/policies/new"><mat-icon>add</mat-icon>{{ 'New policy' | t }}</a>
     </cms-page-header>
 
     @if (policies.isLoading() && !policies.value()) {
@@ -28,7 +29,7 @@ import { Skeleton } from '../../shared/skeleton';
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="font-semibold">{{ p.name }}</h2>
                 @if (!p.isActive) {
-                  <span class="rounded-full bg-subtle px-2 py-0.5 text-xs font-medium text-muted">Inactive</span>
+                  <span class="rounded-full bg-subtle px-2 py-0.5 text-xs font-medium text-muted">{{ 'Inactive' | t }}</span>
                 }
               </div>
               @if (p.description) {
@@ -36,22 +37,22 @@ import { Skeleton } from '../../shared/skeleton';
               }
             </div>
             <div class="flex flex-wrap gap-1.5 text-xs">
-              <span class="rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent-ink">{{ p.contractType ? humanize(p.contractType) : 'Any type' }}</span>
-              <span class="rounded-full bg-subtle px-2.5 py-1 font-medium text-body">{{ p.department?.name ?? 'Any department' }}</span>
+              <span class="rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent-ink">{{ p.contractType ? humanize(p.contractType) : ('Any type' | t) }}</span>
+              <span class="rounded-full bg-subtle px-2.5 py-1 font-medium text-body">{{ p.department?.name ?? ('Any department' | t) }}</span>
             </div>
           </div>
           <ol class="mt-4 flex flex-wrap items-stretch gap-2">
             @for (stage of stages(p.steps); track stage.stage; let last = $last) {
               <li class="flex items-center gap-2">
                 <div class="rounded-xl bg-subtle p-2">
-                  <p class="mb-1 px-1 text-[10px] font-semibold tracking-wider text-faint uppercase">Stage {{ stage.stage }}</p>
+                  <p class="mb-1 px-1 text-[10px] font-semibold tracking-wider text-faint uppercase">{{ 'Stage {n}' | t: { n: stage.stage } }}</p>
                   <div class="flex flex-wrap gap-1.5">
                     @for (s of stage.steps; track s.name) {
                       <span class="rounded-lg bg-card px-2.5 py-1.5 text-xs shadow-sm ring-1 ring-line">
                         <span class="font-medium text-ink">{{ s.name }}</span>
-                        <span class="block text-muted">{{ humanize(s.approverRole) }}{{ s.approverScope === 'CONTRACT_DEPARTMENT' ? ' (own dept.)' : '' }}{{ s.escalateAfterHours ? ' · ' + s.escalateAfterHours + 'h' : '' }}</span>
+                        <span class="block text-muted">{{ humanize(s.approverRole) }}{{ s.approverScope === 'CONTRACT_DEPARTMENT' ? ' ' + ('(own dept.)' | t) : '' }}{{ s.escalateAfterHours ? ' · ' + s.escalateAfterHours + 'h' : '' }}</span>
                         @if (s.conditionText) {
-                          <span class="mt-0.5 block text-seal-600 dark:text-seal-400">if {{ s.conditionText }}</span>
+                          <span class="mt-0.5 block text-seal-600 dark:text-seal-400">{{ 'if {rule}' | t: { rule: s.conditionText } }}</span>
                         }
                       </span>
                     }
@@ -66,7 +67,7 @@ import { Skeleton } from '../../shared/skeleton';
         </a>
       } @empty {
         @if (!policies.isLoading()) {
-          <div class="card"><cms-empty icon="account_tree" title="No approval policies" text="Contracts can't be submitted until a policy applies to them." /></div>
+          <div class="card"><cms-empty icon="account_tree" [title]="'No approval policies' | t" [text]="'Contracts can’t be submitted until a policy applies to them.' | t" /></div>
         }
       }
     </div>

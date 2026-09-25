@@ -1,4 +1,5 @@
 import { Component, ElementRef, output, signal, viewChild, type AfterViewInit } from '@angular/core';
+import { TPipe } from '../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 
 /**
@@ -8,24 +9,24 @@ import { MatButtonModule } from '@angular/material/button';
  */
 @Component({
   selector: 'cms-signature-pad',
-  imports: [MatButtonModule],
+  imports: [TPipe, MatButtonModule],
   template: `
     <div class="relative rounded-lg border-2 border-dashed border-line bg-card">
       <canvas
         #canvas
         class="block h-40 w-full cursor-crosshair touch-none"
-        aria-label="Signature drawing area"
+        [attr.aria-label]="'Signature drawing area' | t"
         (pointerdown)="start($event)"
         (pointermove)="move($event)"
         (pointerup)="end()"
         (pointerleave)="end()"
       ></canvas>
       @if (empty()) {
-        <span class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-faint">Sign here</span>
+        <span class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-faint">{{ 'Sign here' | t }}</span>
       }
       <div class="pointer-events-none absolute right-6 bottom-8 left-6 border-b border-line"></div>
     </div>
-    <button mat-button type="button" class="mt-1" (click)="clear()" [disabled]="empty()">Clear</button>
+    <button mat-button type="button" class="mt-1" (click)="clear()" [disabled]="empty()">{{ 'Clear' | t }}</button>
   `,
 })
 export class SignaturePad implements AfterViewInit {

@@ -226,6 +226,9 @@ model RefreshToken {
   expiresAt    DateTime  @map("expires_at")
   revokedAt    DateTime? @map("revoked_at")
   replacedById String?   @unique @map("replaced_by_id") @db.Uuid
+  /// "Keep me signed in": a long-lived, persistent cookie instead of one that
+  /// ends with the browser session. Carried over on every rotation.
+  persistent   Boolean   @default(false)
   ipAddress    String?   @map("ip_address")
   userAgent    String?   @map("user_agent")
   createdAt    DateTime  @default(now()) @map("created_at")
