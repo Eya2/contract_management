@@ -144,10 +144,41 @@ erDiagram
     implementation now, and an S3 implementation only needs a new class and an
     env switch. The `sha256` of every file is stored.
 
+### Authentication
+
+| | Access token | Refresh token |
+|---|---|---|
+| Format | JWT (HS256, pinned algorithm, `iss`/`aud` checked) | 256-bit random string, opaque |
+| Lifetime | 15 minutes | 7 days, rotated on every use |
+| Where the client keeps it | In memory (never `localStorage`) | `httpOnly`, `SameSite=Strict`, `Path=/api/auth` cookie |
+| Server-side state | None, verified by signature | SHA-256 hash in `refresh_tokens` |
+| Revocable | No, hence the short lifetime | Yes |
+
+- **Rotation with reuse detection.** Each refresh retires the presented token
+  and issues a new one in the same *family* (one family per login). If a retired
+  token is presented again, it was replayed, so the whole family is revoked
+  and an `AUTH_TOKEN_REUSE_DETECTED` audit event is written. A 10-second grace
+  window stops two tabs refreshing at the same moment from counting as theft.
+  A compare-and-set update guarantees only one of several concurrent refreshes
+  wins.
+- **CSRF**: API calls authenticate with the `Authorization` header, which
+  browsers never attach on their own. The only cookie-authenticated endpoints
+  are `/api/auth/refresh` and `/api/auth/logout`, protected by `SameSite=Strict`.
+- **Login hardening**: argon2id password hashes, the same error message and
+  similar timing for an unknown email and a wrong password (a dummy hash is
+  verified), a rate limit of 10 attempts per IP per 15 minutes, and every
+  attempt is audited.
+- **Trade-off**: access tokens are trusted without a DB lookup, so deactivation
+  or a role change takes effect at the next refresh (15 minutes at most).
+  Refresh re-reads the user row.
+
 ### Access control
 
 - **RBAC**: each user has one role, and the role → permission map lives in code
   (versioned and reviewable, and fine for five roles).
+- **Request context**: `AsyncLocalStorage` carries the request id, client IP,
+  user agent and user through the call chain, so `recordAudit()` fills in
+  "who, from where" without every service passing it along.
 - **Row-level visibility**: a single `contractVisibilityFilter(user)` builds the
   Prisma `where` clause. Admin sees everything. Other users see their
   department's contracts **plus** contracts where they hold, or can act on, an

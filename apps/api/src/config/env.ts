@@ -10,9 +10,12 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   CORS_ORIGIN: z.string().default('http://localhost:4200'),
   DATABASE_URL: z.string().min(1),
+  /** Separate database used by the integration tests. */
+  TEST_DATABASE_URL: z.string().optional(),
 
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
-  JWT_ACCESS_TTL: z.string().default('15m'),
+  /** Short-lived on purpose: access tokens are stateless and can't be revoked. */
+  JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(15 * 60),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
 
   STORAGE_DRIVER: z.enum(['local']).default('local'),

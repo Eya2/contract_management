@@ -1,6 +1,6 @@
 import * as Shared from '@cms/shared';
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import * as Db from '../src/generated/prisma/enums.js';
+import * as Db from '../../src/generated/prisma/enums.js';
 
 /**
  * The web app only sees @cms/shared; the API persists Prisma's enums. If someone
