@@ -57,6 +57,20 @@ describe('canActOnStep', () => {
     expect(canActOnStep(user('EMPLOYEE', 'dept-other', 'u2'), assigned)).toBe(true);
   });
 
+  it('never lets the owner or submitter decide their own contract, admins included', () => {
+    const manager = user('MANAGER', 'dept-sales', 'u1');
+    expect(canActOnStep(manager, pendingStep, { requesterIds: ['u1'] })).toBe(false);
+    const assignedAdmin = user('ADMIN', 'dept-ops', 'u1');
+    expect(canActOnStep(assignedAdmin, { ...pendingStep, assigneeId: 'u1' }, { requesterIds: ['u1'] })).toBe(false);
+  });
+
+  it('lets a person the step was escalated to decide it, whatever their role', () => {
+    const head = user('ADMIN', 'dept-ops', 'head');
+    expect(canActOnStep(head, pendingStep)).toBe(false);
+    expect(canActOnStep(head, pendingStep, { escalatedToIds: ['head'] })).toBe(true);
+    expect(canActOnStep(head, { ...pendingStep, status: 'APPROVED' }, { escalatedToIds: ['head'] })).toBe(false);
+  });
+
   it('refuses steps that are not pending', () => {
     for (const status of ['WAITING', 'APPROVED', 'REJECTED', 'SKIPPED', 'CANCELLED'] as const) {
       expect(canActOnStep(user('MANAGER'), { ...pendingStep, status })).toBe(false);

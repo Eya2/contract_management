@@ -20,6 +20,11 @@ const EnvSchema = z.object({
 
   STORAGE_DRIVER: z.enum(['local']).default('local'),
   STORAGE_LOCAL_ROOT: z.string().default('./storage'),
+  /** Largest accepted upload (contract documents, attachments). */
+  MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
+
+  /** How often the escalation scheduler looks for overdue approval steps. 0 disables it. */
+  ESCALATION_SCAN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(60_000),
 
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().int().default(1025),

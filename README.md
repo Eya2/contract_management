@@ -81,15 +81,40 @@ uniquely named records.
 | ------- | ------------ |
 | `npm test` | Unit tests for all workspaces |
 | `npm run typecheck` | Type-check all workspaces |
-| `npm run db:seed` | Load demo departments & users (contracts come later) |
+| `npm run db:seed` | Load demo departments, users, approval policies and draft contracts |
 | `npm run db:studio -w @cms/api` | Browse the database in Prisma Studio |
+
+## API overview
+
+All routes are under `/api` and need `Authorization: Bearer <access token>`.
+
+| Area | Endpoints |
+| ---- | --------- |
+| Contracts | `GET /contracts` (filter: `q`, `status`, `type`, `departmentId`, `counterpartyId`, `ownerId`, `endsBefore`; `sort`, `order`, `page`, `pageSize`) · `POST /contracts` · `GET /contracts/:id` · `PATCH /contracts/:id` (needs `expectedVersion`) |
+| History | `GET /contracts/:id/versions` · `GET /contracts/:id/versions/:n` · `GET /contracts/:id/versions/diff?from=1&to=2` · `GET /contracts/:id/timeline` |
+| Files | `GET /contracts/:id/versions/:n/document` · `POST /contracts/:id/attachments` · `GET …/attachments/:attId/download` · `DELETE …/attachments/:attId` |
+| Workflow | `GET /contracts/:id/approval-preview` · `POST /contracts/:id/submit` · `POST /contracts/:id/withdraw` · `POST /contracts/:id/reopen` · `GET /contracts/:id/approvals` |
+| Approvers | `GET /approvals/pending` · `POST /approvals/steps/:stepId/approve` · `POST /approvals/steps/:stepId/reject` (reason required) |
+| Admin | `GET/POST /workflow-templates` · `GET/PUT/DELETE /workflow-templates/:id` · `POST /approvals/escalations/run` |
+| Reference | `GET/POST /counterparties` · `GET /departments` |
+
+`POST /contracts` and `PATCH /contracts/:id` accept JSON, or `multipart/form-data`
+with the JSON in a `data` field and the contract file (PDF/DOCX/DOC) in `document`.
+
+### Try the approval flow
+
+With the seed loaded: log in as `sales@contracthub.dev` and submit
+"Acme Cloud hosting 2027" (45,000 USD). The *Vendor contracts* policy routes it to
+Sarah (Sales manager), then to Legal and Finance in parallel (Finance applies
+above 10,000). The procurement draft "Office supplies framework" (8,000 USD)
+shows Finance being skipped, with the reason recorded.
 
 ## Roadmap
 
 - [x] Monorepo, database schema, migrations with DB-level guarantees
 - [x] Auth (JWT + refresh-token rotation with reuse detection) and RBAC
-- [ ] Contracts CRUD with version history and file storage
-- [ ] Approval workflow engine (state machine, conditional steps, escalation)
+- [x] Contracts CRUD with version history and file storage
+- [x] Approval workflow engine (state machine, conditional steps, escalation)
 - [ ] Notifications (email job queue + in-app bell) and audit logging
 - [ ] Angular UI: login, dashboard, contract detail, approvals, e-signature
 - [ ] Seed data and demo walkthrough

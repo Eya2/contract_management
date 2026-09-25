@@ -144,6 +144,9 @@ enum AuditAction {
   COMMENT_CREATED
   COMMENT_RESOLVED
   APPROVAL_ESCALATED
+  APPROVAL_STEP_APPROVED
+  APPROVAL_STEP_REJECTED
+  CONTRACT_REOPENED
   USER_CREATED
   USER_UPDATED
   WORKFLOW_TEMPLATE_UPDATED
@@ -303,7 +306,9 @@ model ContractTemplate {
 model Contract {
   id              String         @id @default(uuid()) @db.Uuid
   /// Human-friendly reference, e.g. CTR-2026-00042 (generated from a DB sequence).
-  referenceNumber String         @unique @default(dbgenerated("('CTR-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('contract_reference_seq')::text, 5, '0'))")) @map("reference_number")
+  // The default is spelled exactly as Postgres stores it; any other spelling makes
+  // `migrate dev` see drift and re-emit an ALTER COLUMN in every new migration.
+  referenceNumber String         @unique @default(dbgenerated("((('CTR-'::text || to_char(now(), 'YYYY'::text)) || '-'::text) || lpad((nextval('contract_reference_seq'::regclass))::text, 5, '0'::text))")) @map("reference_number")
   status          ContractStatus @default(DRAFT)
   ownerId         String         @map("owner_id") @db.Uuid
   departmentId    String         @map("department_id") @db.Uuid
@@ -538,8 +543,14 @@ model ApprovalStep {
   /// Optional explicit assignee (e.g. reassigned by an admin).
   assigneeId           String?            @map("assignee_id") @db.Uuid
   status               ApprovalStepStatus @default(WAITING)
+  /// Why the step was routed away from its template approver, e.g. the only
+  /// eligible manager is the requester (who may not approve their own contract).
+  routingNote          String?            @map("routing_note")
   /// Why a step was SKIPPED, e.g. "value 8,000.00 USD is not > 10,000".
   skipReason           String?            @map("skip_reason")
+  /// Frozen copy of the template's escalateAfterHours: later policy edits don't
+  /// change the SLA of a request already in flight.
+  slaHours             Int?               @map("sla_hours")
   activatedAt          DateTime?          @map("activated_at") // became PENDING
   dueAt                DateTime?          @map("due_at") // activatedAt + SLA
   decidedById          String?            @map("decided_by_id") @db.Uuid

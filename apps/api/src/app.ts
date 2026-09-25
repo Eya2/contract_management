@@ -8,9 +8,16 @@ import { requestContextMiddleware } from './common/context/request-context.js';
 import { errorHandler, notFoundHandler } from './common/middleware/error-handler.js';
 import { logger } from './lib/logger.js';
 import { authRouter } from './modules/auth/auth.routes.js';
+import { contractsRouter } from './modules/contracts/contracts.routes.js';
+import { counterpartiesRouter } from './modules/counterparties/counterparties.routes.js';
 import { departmentsRouter } from './modules/departments/departments.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
+import {
+  approvalsRouter,
+  contractWorkflowRouter,
+  workflowTemplatesRouter,
+} from './modules/workflow/workflow.routes.js';
 
 /**
  * Builds the Express app without starting it, so tests can mount it in-process
@@ -40,6 +47,10 @@ export function createApp() {
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/departments', departmentsRouter);
+  app.use('/api/counterparties', counterpartiesRouter);
+  app.use('/api/contracts', contractsRouter, contractWorkflowRouter);
+  app.use('/api/approvals', approvalsRouter);
+  app.use('/api/workflow-templates', workflowTemplatesRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

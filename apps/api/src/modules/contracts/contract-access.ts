@@ -37,9 +37,19 @@ export function approverStepMatch(user: AuthUser): Prisma.ApprovalStepWhereInput
   };
 }
 
-/** "Pending my approval": steps this user can decide right now. */
+/**
+ * "Pending my approval": steps this user can decide right now. That's the
+ * steps routed to them plus the ones escalated to them, minus anything on a
+ * contract they own or submitted (nobody approves their own contract).
+ */
 export function actionableStepFilter(user: AuthUser): Prisma.ApprovalStepWhereInput {
-  return { AND: [{ status: 'PENDING' }, approverStepMatch(user)] };
+  return {
+    AND: [
+      { status: 'PENDING', request: { status: 'IN_PROGRESS' } },
+      { OR: [approverStepMatch(user), { escalations: { some: { escalatedToId: user.id } } }] },
+      { NOT: { request: { OR: [{ submittedById: user.id }, { contract: { ownerId: user.id } }] } } },
+    ],
+  };
 }
 
 export function contractVisibilityFilter(user: AuthUser): Prisma.ContractWhereInput {
@@ -68,7 +78,14 @@ export function contractVisibilityFilter(user: AuthUser): Prisma.ContractWhereIn
   };
 }
 
-/** In-memory twin of `approverStepMatch`, used when a step is already loaded. */
+/**
+ * In-memory twin of `actionableStepFilter`, used when a step is already loaded.
+ *
+ * `requesterIds` are the contract owner and the submitter: segregation of
+ * duties means they can never decide a step of their own request, whatever
+ * their role (admins included). `escalatedToIds` are the people the step was
+ * escalated to, who may decide it in place of the original approvers.
+ */
 export function canActOnStep(
   user: AuthUser,
   step: {
@@ -77,8 +94,11 @@ export function canActOnStep(
     approverDepartmentId: string | null;
     assigneeId: string | null;
   },
+  context: { requesterIds?: string[]; escalatedToIds?: string[] } = {},
 ): boolean {
   if (step.status !== 'PENDING') return false;
+  if (context.requesterIds?.includes(user.id)) return false;
+  if (context.escalatedToIds?.includes(user.id)) return true;
   if (step.assigneeId) return step.assigneeId === user.id;
   return (
     step.approverRole === user.role &&

@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
@@ -11,6 +13,8 @@ export default defineConfig({
       NODE_ENV: 'test',
       JWT_ACCESS_SECRET: 'test-access-secret-that-is-long-enough-0123456789',
       DATABASE_URL: testDatabaseUrl ?? 'postgresql://missing-TEST_DATABASE_URL',
+      // Uploaded test files go to a throwaway directory, never ./storage.
+      STORAGE_LOCAL_ROOT: path.join(tmpdir(), 'contract-hub-test-storage'),
     },
     projects: [
       {

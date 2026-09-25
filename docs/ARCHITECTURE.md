@@ -84,7 +84,8 @@ erDiagram
 
 2. **Workflow definitions vs. instances.** `WorkflowTemplate` and
    `WorkflowStepTemplate` are the configurable policy. On submit, the engine
-   picks the most specific template (type+department > type > default),
+   picks the most specific template (type+department > type > department >
+   default),
    evaluates each step's `condition` (for example
    `{ field: "value", op: "gt", value: 10000 }` for Finance), and materializes
    `ApprovalStep` rows. Steps whose condition fails are stored as `SKIPPED` with
@@ -114,8 +115,11 @@ erDiagram
 
 7. **Escalation is idempotent.** A scheduler scans `PENDING` steps with
    `dueAt < now()`. Escalation targets are the head of the approver
-   department, then Admins. `ApprovalEscalation @@unique([stepId, level, escalatedToId])`
-   means re-running the scan can't notify twice.
+   department, then Admins, and each target may decide the step from then on.
+   The level bump is compare-and-set on `escalationLevel`, and
+   `ApprovalEscalation @@unique([stepId, level, escalatedToId])` plus the email
+   `dedupeKey` mean re-running the scan (or running two scanners) can't
+   escalate or notify twice.
 
 8. **Postgres job queue (transactional outbox).** Emails are `Job` rows
    inserted *in the same transaction* as the state change. A rolled-back
@@ -143,6 +147,52 @@ erDiagram
     `StorageProvider` interface (`put/get/delete`) has a local-disk
     implementation now, and an S3 implementation only needs a new class and an
     env switch. The `sha256` of every file is stored.
+
+13. **Contracts are never deleted.** The audit log references them with
+    `ON DELETE RESTRICT`, and every contract has at least its creation entry.
+    A draft that's no longer wanted is simply left as a draft; supporting
+    attachments can be detached from a draft, but the stored file is kept.
+
+14. **Uploads are checked by content, not by name.** The extension must be on
+    an allowlist and the file's leading "magic" bytes must match it (`%PDF-`,
+    the ZIP header for DOCX, …); the browser's MIME type is ignored. Downloads
+    are served as attachments with `nosniff`, and each one is audited.
+
+### Workflow engine
+
+The engine (`modules/workflow/workflow-engine.ts`) is a set of pure functions;
+`approval.service.ts` loads rows, asks the engine what should happen, and writes
+the result in one transaction.
+
+```
+submit ─▶ selectTemplate ─▶ materializeSteps ─▶ routeStep ─▶ openNextStage
+decide ─▶ applyDecision ─▶ STAGE_IN_PROGRESS | NEXT_STAGE | APPROVED | REJECTED
+scan   ─▶ planEscalation
+```
+
+- **Conditions** are JSON (`{ field, op, value }` leaves combined with
+  `all` / `any` / `not`), validated by zod on save and never executed. They
+  are evaluated with **three-valued logic**: a missing fact (a draft with no
+  value) is *unknown*, and a step whose condition is unknown is required.
+  Missing data can never be used to skip Finance.
+- **One lock per contract.** Submit, decide and withdraw all begin with
+  `SELECT … FROM contracts WHERE id = $1 FOR UPDATE`. Without it, two
+  approvers completing the last two parallel steps of a stage at the same
+  moment would each still see the other step as `PENDING`, and neither would
+  open the next stage. Everything locks the contract first, so there is no
+  lock-order deadlock.
+- **Segregation of duties.** The contract owner and the submitter can never
+  decide a step of their own request, whatever their role. If the requester is
+  the only eligible approver (a manager submitting their own contract), the
+  step is assigned to the department head or an admin at submission, and
+  `routingNote` records why.
+- **Frozen SLA.** `ApprovalStep.slaHours` copies the template's
+  `escalateAfterHours`, so later policy edits don't change the deadlines of a
+  request already in flight.
+- **Any approver can veto.** One rejection ends the round: remaining steps
+  become `CANCELLED` and the reason goes into the contract timeline.
+- **Nothing to approve?** If every step's condition fails, the request is
+  approved immediately.
 
 ### Authentication
 
