@@ -1,0 +1,735 @@
+// =============================================================================
+//  Contract Management & Approval Workflow — database schema
+// =============================================================================
+//  Design principles (see docs/ARCHITECTURE.md for the long version):
+//
+//  1. History is append-only. Contract content lives in immutable
+//     ContractVersion rows; status changes go to ContractStatusChange; security
+//     events go to AuditLog (UPDATE/DELETE blocked by a DB trigger).
+//  2. Workflow *definitions* (templates) are separate from workflow *instances*.
+//     On submission the template is copied into ApprovalRequest/ApprovalStep, so
+//     editing a policy never changes contracts that are already in review.
+//  3. Approvals and signatures point at the exact ContractVersion they cover.
+//     Changing the contract after approval therefore can't silently keep the
+//     old approval.
+//  4. Side effects (email) go through a DB job table written in the *same
+//     transaction* as the state change (transactional outbox).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+//  Enums
+// -----------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  LEGAL
+  MANAGER
+  FINANCE
+  EMPLOYEE
+}
+
+enum ContractType {
+  VENDOR
+  CLIENT
+  NDA
+  EMPLOYMENT
+}
+
+enum ContractStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  SIGNED
+  ACTIVE
+  EXPIRED
+  RENEWED
+  TERMINATED
+}
+
+enum CounterpartyKind {
+  COMPANY
+  INDIVIDUAL
+}
+
+/// Who, within the approver role, is allowed to act on a step.
+enum ApproverScope {
+  /// Anyone with the role, company-wide (e.g. the Legal team reviews everything).
+  ANY
+  /// Only holders of the role in the contract's own department (e.g. its Manager).
+  CONTRACT_DEPARTMENT
+}
+
+enum ApprovalRequestStatus {
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ApprovalStepStatus {
+  WAITING
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
+  CANCELLED
+}
+
+enum SignerStatus {
+  PENDING
+  SIGNED
+  DECLINED
+}
+
+enum SignatureMethod {
+  DRAWN
+  TYPED
+}
+
+enum AttachmentKind {
+  SUPPORTING
+  SIGNED_COPY
+}
+
+enum NotificationType {
+  APPROVAL_REQUESTED
+  APPROVAL_GRANTED
+  CONTRACT_APPROVED
+  CONTRACT_REJECTED
+  APPROVAL_ESCALATED
+  SIGNATURE_REQUESTED
+  CONTRACT_SIGNED
+  CONTRACT_EXPIRING
+  COMMENT_MENTION
+  COMMENT_REPLY
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum AuditAction {
+  AUTH_LOGIN
+  AUTH_LOGIN_FAILED
+  AUTH_LOGOUT
+  AUTH_TOKEN_REUSE_DETECTED
+  CONTRACT_CREATED
+  CONTRACT_VIEWED
+  CONTRACT_UPDATED
+  CONTRACT_SUBMITTED
+  CONTRACT_WITHDRAWN
+  CONTRACT_APPROVED
+  CONTRACT_REJECTED
+  CONTRACT_SIGNED
+  CONTRACT_ACTIVATED
+  CONTRACT_EXPIRED
+  CONTRACT_RENEWED
+  CONTRACT_TERMINATED
+  DOCUMENT_UPLOADED
+  DOCUMENT_DOWNLOADED
+  COMMENT_CREATED
+  COMMENT_RESOLVED
+  APPROVAL_ESCALATED
+  USER_CREATED
+  USER_UPDATED
+  WORKFLOW_TEMPLATE_UPDATED
+}
+
+// -----------------------------------------------------------------------------
+//  Organisation & identity
+// -----------------------------------------------------------------------------
+
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  code      String   @unique @db.VarChar(16) // short code, e.g. "LEG", "FIN"
+  /// Department head — the "next level up" when an approval step escalates.
+  headId    String?  @unique @map("head_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  head              User?              @relation("DepartmentHead", fields: [headId], references: [id], onDelete: SetNull)
+  members           User[]             @relation("DepartmentMembers")
+  contracts         Contract[]
+  approvalSteps     ApprovalStep[]
+  workflowTemplates WorkflowTemplate[]
+
+  @@map("departments")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  /// One role per user keeps RBAC easy to reason about; permissions per role live in code.
+  role         Role      @default(EMPLOYEE)
+  departmentId String    @map("department_id") @db.Uuid
+  /// Users are deactivated, never deleted: audit logs and approvals must keep resolving.
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  department    Department     @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  headOf        Department?    @relation("DepartmentHead")
+  refreshTokens RefreshToken[]
+
+  ownedContracts      Contract[]             @relation("ContractOwner")
+  authoredVersions    ContractVersion[]
+  statusChanges       ContractStatusChange[]
+  submittedRequests   ApprovalRequest[]      @relation("RequestSubmitter")
+  assignedSteps       ApprovalStep[]         @relation("StepAssignee")
+  decidedSteps        ApprovalStep[]         @relation("StepDecider")
+  escalationsReceived ApprovalEscalation[]
+  comments            Comment[]              @relation("CommentAuthor")
+  resolvedComments    Comment[]              @relation("CommentResolver")
+  signatures          ContractSigner[]
+  uploadedFiles       StoredFile[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  createdTemplates    ContractTemplate[]
+
+  @@index([departmentId, role])
+  @@map("users")
+}
+
+/// Refresh tokens are stored hashed and rotated on every use. All tokens from one
+/// login share a `familyId`; presenting an already-rotated token revokes the whole
+/// family (a stolen token was used), per the OAuth 2.0 Security BCP.
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  familyId     String    @map("family_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash") // SHA-256 of the opaque token
+  expiresAt    DateTime  @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  replacedById String?   @unique @map("replaced_by_id") @db.Uuid
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("TokenRotation", fields: [replacedById], references: [id])
+  replaces   RefreshToken? @relation("TokenRotation")
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// -----------------------------------------------------------------------------
+//  Files (storage-agnostic)
+// -----------------------------------------------------------------------------
+
+/// Metadata for any stored blob. `storageKey` is an opaque key interpreted by the
+/// active StorageProvider (local disk today, S3 later), never a filesystem path.
+model StoredFile {
+  id           String   @id @default(uuid()) @db.Uuid
+  storageKey   String   @unique @map("storage_key")
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  /// Content hash: lets signatures prove *which bytes* were signed.
+  sha256       String   @db.Char(64)
+  uploadedById String   @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  uploadedBy      User                 @relation(fields: [uploadedById], references: [id])
+  versions        ContractVersion[]
+  attachments     ContractAttachment[]
+  signatureImages ContractSigner[]
+
+  @@map("stored_files")
+}
+
+// -----------------------------------------------------------------------------
+//  Contracts, versions & templates
+// -----------------------------------------------------------------------------
+
+model Counterparty {
+  id                 String           @id @default(uuid()) @db.Uuid
+  name               String
+  kind               CounterpartyKind @default(COMPANY)
+  email              String?
+  contactName        String?          @map("contact_name")
+  registrationNumber String?          @map("registration_number")
+  createdAt          DateTime         @default(now()) @map("created_at")
+
+  contracts Contract[]
+  versions  ContractVersion[]
+
+  @@index([name])
+  @@map("counterparties")
+}
+
+/// Reusable contract body with {{placeholders}} and a list of clauses.
+model ContractTemplate {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  type        ContractType
+  description String?
+  /// Ordered clauses: [{ key, heading, body }] where body may contain {{placeholders}}.
+  clauses     Json
+  isActive    Boolean      @default(true) @map("is_active")
+  createdById String       @map("created_by_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  createdBy User              @relation(fields: [createdById], references: [id])
+  versions  ContractVersion[]
+
+  @@map("contract_templates")
+}
+
+/// The contract "head": identity, lifecycle status and a denormalized copy of the
+/// *current* version's fields (so list/filter/dashboard queries don't need a join).
+/// Every content edit appends a ContractVersion and updates this row in the same
+/// transaction; the service layer is the only writer, which keeps the two in sync.
+model Contract {
+  id              String         @id @default(uuid()) @db.Uuid
+  /// Human-friendly reference, e.g. CTR-2026-00042 (generated from a DB sequence).
+  referenceNumber String         @unique @default(dbgenerated("('CTR-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('contract_reference_seq')::text, 5, '0'))")) @map("reference_number")
+  status          ContractStatus @default(DRAFT)
+  ownerId         String         @map("owner_id") @db.Uuid
+  departmentId    String         @map("department_id") @db.Uuid
+
+  // --- denormalized from the current version -------------------------------
+  currentVersionNumber Int          @default(1) @map("current_version_number")
+  title                String
+  type                 ContractType
+  counterpartyId       String       @map("counterparty_id") @db.Uuid
+  value                Decimal?     @db.Decimal(14, 2)
+  currency             String       @default("USD") @db.Char(3)
+  startDate            DateTime?    @map("start_date") @db.Date
+  endDate              DateTime?    @map("end_date") @db.Date
+  // --------------------------------------------------------------------------
+
+  autoRenew         Boolean   @default(false) @map("auto_renew")
+  /// Set when this contract is the renewal of an earlier one.
+  renewalOfId       String?   @unique @map("renewal_of_id") @db.Uuid
+  activatedAt       DateTime? @map("activated_at")
+  terminatedAt      DateTime? @map("terminated_at")
+  terminationReason String?   @map("termination_reason")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  owner        User         @relation("ContractOwner", fields: [ownerId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
+  counterparty Counterparty @relation(fields: [counterpartyId], references: [id])
+  renewalOf    Contract?    @relation("Renewal", fields: [renewalOfId], references: [id])
+  renewedBy    Contract?    @relation("Renewal")
+
+  versions         ContractVersion[]
+  attachments      ContractAttachment[]
+  statusChanges    ContractStatusChange[]
+  approvalRequests ApprovalRequest[]
+  comments         Comment[]
+  signers          ContractSigner[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+
+  @@index([departmentId, status])
+  @@index([status, endDate]) // expiration job: ACTIVE contracts ending soon
+  @@index([type])
+  @@index([ownerId])
+  @@map("contracts")
+}
+
+/// Immutable snapshot of a contract's content. Never updated after insert.
+model ContractVersion {
+  id             String       @id @default(uuid()) @db.Uuid
+  contractId     String       @map("contract_id") @db.Uuid
+  versionNumber  Int          @map("version_number")
+  title          String
+  type           ContractType
+  counterpartyId String       @map("counterparty_id") @db.Uuid
+  value          Decimal?     @db.Decimal(14, 2)
+  currency       String       @default("USD") @db.Char(3)
+  startDate      DateTime?    @map("start_date") @db.Date
+  endDate        DateTime?    @map("end_date") @db.Date
+  /// Uploaded document (PDF/DOCX) — for contracts that were not built from a template.
+  fileId         String?      @map("file_id") @db.Uuid
+  /// Template this version was generated from, if any.
+  templateId     String?      @map("template_id") @db.Uuid
+  /// Short "what changed" note shown in the version history.
+  changeSummary  String?      @map("change_summary")
+  /// SHA-256 over the canonical content (fields + clauses + file hash); signed by signers.
+  contentHash    String       @map("content_hash") @db.Char(64)
+  createdById    String       @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  contract     Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  counterparty Counterparty      @relation(fields: [counterpartyId], references: [id])
+  file         StoredFile?       @relation(fields: [fileId], references: [id])
+  template     ContractTemplate? @relation(fields: [templateId], references: [id])
+  createdBy    User              @relation(fields: [createdById], references: [id])
+
+  clauses          ContractClause[]
+  approvalRequests ApprovalRequest[]
+  comments         Comment[]
+  signers          ContractSigner[]
+
+  /// Also acts as the concurrency guard: two simultaneous edits can't both create version N+1.
+  @@unique([contractId, versionNumber])
+  @@map("contract_versions")
+}
+
+/// A clause/section of a version's text — the anchor for clause-level comments.
+/// `key` is stable across versions (e.g. "termination"), so the UI can show that a
+/// comment made on v2 refers to the same clause in v3.
+model ContractClause {
+  id        String @id @default(uuid()) @db.Uuid
+  versionId String @map("version_id") @db.Uuid
+  key       String
+  position  Int
+  heading   String
+  body      String
+
+  version  ContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  comments Comment[]
+
+  @@unique([versionId, key])
+  @@unique([versionId, position])
+  @@map("contract_clauses")
+}
+
+model ContractAttachment {
+  id          String         @id @default(uuid()) @db.Uuid
+  contractId  String         @map("contract_id") @db.Uuid
+  fileId      String         @map("file_id") @db.Uuid
+  kind        AttachmentKind @default(SUPPORTING)
+  description String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  contract Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  file     StoredFile @relation(fields: [fileId], references: [id])
+
+  @@index([contractId])
+  @@map("contract_attachments")
+}
+
+/// Domain-level lifecycle history, powering the contract timeline in the UI.
+/// (AuditLog answers "who touched what" for security; this answers "how did the
+/// contract get here" for the business — including rejection reasons.)
+model ContractStatusChange {
+  id         String          @id @default(uuid()) @db.Uuid
+  contractId String          @map("contract_id") @db.Uuid
+  fromStatus ContractStatus? @map("from_status") // null for creation
+  toStatus   ContractStatus  @map("to_status")
+  /// Null when the system made the change (scheduler: activation, expiry).
+  actorId    String?         @map("actor_id") @db.Uuid
+  reason     String?
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  actor    User?    @relation(fields: [actorId], references: [id])
+
+  @@index([contractId, createdAt])
+  @@map("contract_status_changes")
+}
+
+// -----------------------------------------------------------------------------
+//  Approval workflow — definitions
+// -----------------------------------------------------------------------------
+
+/// An approval policy, e.g. "Standard vendor contract". The engine picks the most
+/// specific active template for a contract: (type + department) > type > default.
+model WorkflowTemplate {
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String
+  description  String?
+  /// Null = applies to every contract type.
+  contractType ContractType? @map("contract_type")
+  /// Null = applies to every department.
+  departmentId String?       @map("department_id") @db.Uuid
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  department Department?            @relation(fields: [departmentId], references: [id])
+  steps      WorkflowStepTemplate[]
+  requests   ApprovalRequest[]
+
+  @@index([contractType, departmentId, isActive])
+  @@map("workflow_templates")
+}
+
+/// One step of a policy. Steps run stage by stage; steps sharing a `stage` number
+/// run in parallel and all must approve before the next stage opens.
+model WorkflowStepTemplate {
+  id                 String        @id @default(uuid()) @db.Uuid
+  workflowTemplateId String        @map("workflow_template_id") @db.Uuid
+  stage              Int
+  name               String // e.g. "Legal review"
+  approverRole       Role          @map("approver_role")
+  approverScope      ApproverScope @default(ANY) @map("approver_scope")
+  /// Optional rule deciding whether the step applies, stored as data and evaluated
+  /// by a pure function, e.g. { "field": "value", "op": "gt", "value": 10000 }.
+  /// Null = always required. Validated with zod before being saved.
+  condition          Json?
+  /// SLA: escalate if the step stays PENDING longer than this. Null = never.
+  escalateAfterHours Int?          @map("escalate_after_hours")
+
+  workflowTemplate WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
+  instances        ApprovalStep[]
+
+  @@index([workflowTemplateId, stage])
+  @@map("workflow_step_templates")
+}
+
+// -----------------------------------------------------------------------------
+//  Approval workflow — runtime instances
+// -----------------------------------------------------------------------------
+
+/// One submission of one contract version. A rejected-then-resubmitted contract
+/// has several requests, preserving the full review history of each round.
+/// A partial unique index (see migration) allows at most one IN_PROGRESS request
+/// per contract.
+model ApprovalRequest {
+  id                 String                @id @default(uuid()) @db.Uuid
+  contractId         String                @map("contract_id") @db.Uuid
+  /// The exact version under review. Approval is only valid for these bytes.
+  contractVersionId  String                @map("contract_version_id") @db.Uuid
+  workflowTemplateId String?               @map("workflow_template_id") @db.Uuid
+  status             ApprovalRequestStatus @default(IN_PROGRESS)
+  /// Stage currently open (null once the request is finished).
+  currentStage       Int?                  @map("current_stage")
+  submittedById      String                @map("submitted_by_id") @db.Uuid
+  submittedAt        DateTime              @default(now()) @map("submitted_at")
+  completedAt        DateTime?             @map("completed_at")
+
+  contract         Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contractVersion  ContractVersion   @relation(fields: [contractVersionId], references: [id])
+  workflowTemplate WorkflowTemplate? @relation(fields: [workflowTemplateId], references: [id], onDelete: SetNull)
+  submittedBy      User              @relation("RequestSubmitter", fields: [submittedById], references: [id])
+  steps            ApprovalStep[]
+
+  @@index([contractId, submittedAt])
+  @@map("approval_requests")
+}
+
+/// A materialized step: a copy of the template step, frozen at submission time,
+/// plus the decision. This row *is* the approval log: who, when, decision, comment.
+model ApprovalStep {
+  id                   String             @id @default(uuid()) @db.Uuid
+  requestId            String             @map("request_id") @db.Uuid
+  templateStepId       String?            @map("template_step_id") @db.Uuid
+  stage                Int
+  name                 String
+  approverRole         Role               @map("approver_role")
+  /// Resolved from ApproverScope at submission: set when only one department's
+  /// role-holders may act; null means any holder of the role.
+  approverDepartmentId String?            @map("approver_department_id") @db.Uuid
+  /// Optional explicit assignee (e.g. reassigned by an admin).
+  assigneeId           String?            @map("assignee_id") @db.Uuid
+  status               ApprovalStepStatus @default(WAITING)
+  /// Why a step was SKIPPED, e.g. "value 8,000.00 USD is not > 10,000".
+  skipReason           String?            @map("skip_reason")
+  activatedAt          DateTime?          @map("activated_at") // became PENDING
+  dueAt                DateTime?          @map("due_at") // activatedAt + SLA
+  decidedById          String?            @map("decided_by_id") @db.Uuid
+  decidedAt            DateTime?          @map("decided_at")
+  comment              String? // required when rejecting
+  escalationLevel      Int                @default(0) @map("escalation_level")
+
+  request            ApprovalRequest       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  templateStep       WorkflowStepTemplate? @relation(fields: [templateStepId], references: [id], onDelete: SetNull)
+  approverDepartment Department?           @relation(fields: [approverDepartmentId], references: [id])
+  assignee           User?                 @relation("StepAssignee", fields: [assigneeId], references: [id])
+  decidedBy          User?                 @relation("StepDecider", fields: [decidedById], references: [id])
+  escalations        ApprovalEscalation[]
+
+  @@index([requestId, stage])
+  // "Pending my approval" + escalation scan
+  @@index([status, approverRole, approverDepartmentId])
+  @@index([status, dueAt])
+  @@map("approval_steps")
+}
+
+/// Each escalation of an overdue step. The unique (step, level) pair makes the
+/// scheduler idempotent: re-running it can never escalate the same level twice.
+model ApprovalEscalation {
+  id            String   @id @default(uuid()) @db.Uuid
+  stepId        String   @map("step_id") @db.Uuid
+  level         Int
+  escalatedToId String   @map("escalated_to_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  step        ApprovalStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  escalatedTo User         @relation(fields: [escalatedToId], references: [id])
+
+  @@unique([stepId, level, escalatedToId])
+  @@map("approval_escalations")
+}
+
+// -----------------------------------------------------------------------------
+//  Comments & clause annotations
+// -----------------------------------------------------------------------------
+
+/// Threaded comments. Root comments (parentId = null) may anchor to a clause and,
+/// optionally, to a text range inside it (a W3C "TextQuoteSelector"-style anchor:
+/// { exact, prefix, suffix }), which survives small edits better than raw offsets.
+/// Replies inherit their root's anchor; the UI keeps threads one level deep.
+model Comment {
+  id           String    @id @default(uuid()) @db.Uuid
+  contractId   String    @map("contract_id") @db.Uuid
+  versionId    String    @map("version_id") @db.Uuid
+  clauseId     String?   @map("clause_id") @db.Uuid
+  parentId     String?   @map("parent_id") @db.Uuid
+  authorId     String    @map("author_id") @db.Uuid
+  body         String
+  anchor       Json?
+  resolvedAt   DateTime? @map("resolved_at")
+  resolvedById String?   @map("resolved_by_id") @db.Uuid
+  editedAt     DateTime? @map("edited_at")
+  deletedAt    DateTime? @map("deleted_at") // soft delete keeps threads intact
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  contract   Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  version    ContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  clause     ContractClause? @relation(fields: [clauseId], references: [id], onDelete: SetNull)
+  parent     Comment?        @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[]       @relation("Thread")
+  author     User            @relation("CommentAuthor", fields: [authorId], references: [id])
+  resolvedBy User?           @relation("CommentResolver", fields: [resolvedById], references: [id])
+
+  @@index([contractId, versionId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+// -----------------------------------------------------------------------------
+//  E-signature
+// -----------------------------------------------------------------------------
+
+/// A required signer for an approved version, and — once signed — the evidence:
+/// signature image/typed name, timestamp, IP, user agent and the content hash
+/// that was on screen when they signed.
+model ContractSigner {
+  id                   String       @id @default(uuid()) @db.Uuid
+  contractId           String       @map("contract_id") @db.Uuid
+  versionId            String       @map("version_id") @db.Uuid
+  /// Internal signer (company side). Null for an external counterparty signer.
+  userId               String?      @map("user_id") @db.Uuid
+  name                 String
+  email                String
+  signingOrder         Int          @default(1) @map("signing_order")
+  status               SignerStatus @default(PENDING)
+  /// External signers authenticate with a one-time emailed link (hash stored).
+  accessTokenHash      String?      @unique @map("access_token_hash")
+  accessTokenExpiresAt DateTime?    @map("access_token_expires_at")
+
+  method            SignatureMethod?
+  typedSignature    String?          @map("typed_signature")
+  signatureFileId   String?          @map("signature_file_id") @db.Uuid // drawn signature PNG
+  signedContentHash String?          @map("signed_content_hash") @db.Char(64)
+  signedAt          DateTime?        @map("signed_at")
+  ipAddress         String?          @map("ip_address")
+  userAgent         String?          @map("user_agent")
+  declineReason     String?          @map("decline_reason")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  contract      Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  version       ContractVersion @relation(fields: [versionId], references: [id])
+  user          User?           @relation(fields: [userId], references: [id])
+  signatureFile StoredFile?     @relation(fields: [signatureFileId], references: [id])
+
+  @@unique([versionId, email])
+  @@index([contractId])
+  @@map("contract_signers")
+}
+
+// -----------------------------------------------------------------------------
+//  Notifications & background jobs
+// -----------------------------------------------------------------------------
+
+/// In-app notification (the bell). Emails are sent separately via the Job table.
+model Notification {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  type       NotificationType
+  title      String
+  body       String
+  /// Front-end route to open, e.g. /contracts/<id>?tab=approvals
+  link       String?
+  contractId String?          @map("contract_id") @db.Uuid
+  readAt     DateTime?        @map("read_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+/// A Postgres-backed job queue (no Redis needed). Jobs are inserted in the same
+/// transaction as the change that caused them (transactional outbox), and workers
+/// claim them with `SELECT … FOR UPDATE SKIP LOCKED`, so several worker processes
+/// can run safely. `dedupeKey` makes scheduled work idempotent, e.g.
+/// "expiry-reminder:<contractId>:7d" can only ever be enqueued once.
+model Job {
+  id          String    @id @default(uuid()) @db.Uuid
+  type        String // e.g. "email.send"
+  payload     Json
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5) @map("max_attempts")
+  runAt       DateTime  @default(now()) @map("run_at") // also used for retry backoff
+  lockedAt    DateTime? @map("locked_at")
+  lockedBy    String?   @map("locked_by")
+  lastError   String?   @map("last_error")
+  dedupeKey   String?   @unique @map("dedupe_key")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([status, runAt])
+  @@map("jobs")
+}
+
+// -----------------------------------------------------------------------------
+//  Audit log (append-only)
+// -----------------------------------------------------------------------------
+
+/// Immutable security log. A trigger (see migration) rejects UPDATE and DELETE,
+/// so even a bug or a compromised app account can't rewrite history.
+/// BigInt identity gives a strict insertion order for export/review.
+model AuditLog {
+  id         BigInt      @id @default(autoincrement())
+  /// Null for system actions and failed logins of unknown users.
+  userId     String?     @map("user_id") @db.Uuid
+  action     AuditAction
+  entityType String      @map("entity_type") // "contract", "user", "comment", …
+  entityId   String?     @map("entity_id")
+  /// Denormalized for the per-contract audit trail tab (fast, indexed).
+  contractId String?     @map("contract_id") @db.Uuid
+  ipAddress  String?     @map("ip_address")
+  userAgent  String?     @map("user_agent")
+  /// Extra context: changed fields, old/new status, file name, etc.
+  metadata   Json?
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  // No cascades: audit rows must outlive anything they reference.
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: Restrict)
+
+  @@index([contractId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

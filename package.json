@@ -1,0 +1,23 @@
+{
+  "name": "contract-management",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Contract lifecycle management platform: drafting, multi-step approval, e-signature and renewal tracking.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @cms/shared",
+    "dev:api": "npm run build:shared && npm run dev -w @cms/api",
+    "dev:web": "npm run build:shared && npm run start -w @cms/web",
+    "db:up": "docker compose up -d postgres mailpit",
+    "db:migrate": "npm run db:migrate -w @cms/api",
+    "db:seed": "npm run db:seed -w @cms/api",
+    "test": "npm run build:shared && npm test --workspaces --if-present",
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

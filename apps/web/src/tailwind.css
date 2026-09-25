@@ -1,0 +1,21 @@
+/*
+ * Tailwind handles layout, spacing and typography utilities; Angular Material
+ * provides the interactive components (table, datepicker, dialog, menu…).
+ * Tailwind's layers have lower precedence than Material's unlayered styles, so
+ * the two don't fight. Kept in a plain .css file as Tailwind v4 requires.
+ */
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand + contract status palette (mirrored in the Material theme). */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-500: #4f46e5;
+  --color-brand-600: #4338ca;
+  --color-brand-700: #3730a3;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-surface: #f8fafc;
+}

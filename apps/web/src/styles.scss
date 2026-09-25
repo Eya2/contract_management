@@ -1,0 +1,31 @@
+@use '@angular/material' as mat;
+
+// Material 3 theme: blue primary, Inter typography, compact density for a
+// data-heavy business app (tables, forms) without feeling cramped.
+html {
+  color-scheme: light;
+  @include mat.theme((
+    color: (
+      primary: mat.$blue-palette,
+      tertiary: mat.$violet-palette,
+    ),
+    typography: (
+      plain-family: 'Inter Variable, ui-sans-serif, system-ui, sans-serif',
+      brand-family: 'Inter Variable, ui-sans-serif, system-ui, sans-serif',
+    ),
+    density: -1,
+  ));
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface, #f8fafc);
+  color: var(--color-ink, #0f172a);
+  font-family: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
