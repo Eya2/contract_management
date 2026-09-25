@@ -1,14 +1,22 @@
-import { provideHttpClient, withFetch } from '@angular/common/http';
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { MatIconRegistry } from '@angular/material/icon';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { routes } from './app.routes';
+import { authInterceptor } from './core/auth.interceptor';
+import { AuthService } from './core/auth.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    // Route params bind straight to component inputs (e.g. `id = input.required<string>()`).
+    // Route params and query params bind straight to component inputs (e.g. `id = input.required<string>()`).
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
-    // Interceptors (auth token, refresh-on-401, error toasts) are added in the auth step.
-    provideHttpClient(withFetch()),
+    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
+    // <mat-icon> renders Material Symbols (bundled by the material-symbols package).
+    provideAppInitializer(() => {
+      inject(MatIconRegistry).setDefaultFontSetClass('material-symbols-outlined');
+    }),
+    // Resume the session from the refresh cookie before the first route guard runs.
+    provideAppInitializer(() => inject(AuthService).restore()),
   ],
 };

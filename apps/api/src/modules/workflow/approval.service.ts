@@ -362,6 +362,11 @@ export const approvalService = {
     await prisma.$transaction(async (tx) => {
       const contract = await lockContract(tx, contractId);
       if (contract.status !== 'APPROVED') throw new ConflictError('Only an approved, unsigned contract can be reopened');
+      if (await tx.contractSigner.count({
+          where: { contractId, status: 'SIGNED', version: { versionNumber: contract.currentVersionNumber } },
+        })) {
+        throw new ConflictError('Someone has already signed this contract; it can no longer be reopened');
+      }
       await transitionContract(tx, { contractId, from: 'APPROVED', to: 'DRAFT', actorId: user.id, reason });
       await recordAudit({ action: 'CONTRACT_REOPENED', entityType: 'contract', entityId: contractId, contractId, metadata: { reason } }, tx);
     });

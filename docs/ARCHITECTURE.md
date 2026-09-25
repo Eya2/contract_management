@@ -194,6 +194,39 @@ scan   ─▶ planEscalation
 - **Nothing to approve?** If every step's condition fails, the request is
   approved immediately.
 
+### E-signature
+
+- Signers are bound to the **approved version**. Internal signers (whose role
+  holds `contract.sign`) act from their account; external signers get a
+  personal link. Its 256-bit token is stored only as a SHA-256 hash and
+  expires after 14 days.
+- Signing follows `signingOrder` (same number = parallel). Each signature
+  records method (typed or drawn PNG), time, IP, user agent and the **content
+  hash shown on screen**, which must equal the version's hash when signing: a
+  contract that changed after the signer opened it can't be signed.
+- The last signature moves the contract to `ACTIVE`, or to `SIGNED` until its
+  start date, when the scheduler activates it. A decline sends it back to
+  `DRAFT` with the reason. The signer list is frozen after the first
+  signature.
+
+### Background work
+
+`jobs/scheduler.ts` runs three idempotent tasks in-process: the **job worker**
+(emails, claimed with `FOR UPDATE SKIP LOCKED`, retried with exponential
+backoff, then `FAILED` with the error kept), the **escalation scan**, and
+**activation** of signed contracts on their start date. Raw SQL compares
+timestamps in UTC (`now() AT TIME ZONE 'UTC'`), because Prisma stores UTC in
+`timestamp without time zone` columns; a bare `now()` would be off by the
+database session's offset.
+
+### Web app
+
+Angular 22, zoneless, standalone components and signals throughout; data is
+loaded with `resource()`. The access token lives only in memory; on page load
+the app trades the httpOnly refresh cookie for a new one. An interceptor
+refreshes once on a 401 and replays the request. Every feature route is
+lazy-loaded, and list filters live in the URL so views can be linked.
+
 ### Authentication
 
 | | Access token | Refresh token |

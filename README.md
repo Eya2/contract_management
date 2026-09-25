@@ -95,19 +95,38 @@ All routes are under `/api` and need `Authorization: Bearer <access token>`.
 | Files | `GET /contracts/:id/versions/:n/document` · `POST /contracts/:id/attachments` · `GET …/attachments/:attId/download` · `DELETE …/attachments/:attId` |
 | Workflow | `GET /contracts/:id/approval-preview` · `POST /contracts/:id/submit` · `POST /contracts/:id/withdraw` · `POST /contracts/:id/reopen` · `GET /contracts/:id/approvals` |
 | Approvers | `GET /approvals/pending` · `POST /approvals/steps/:stepId/approve` · `POST /approvals/steps/:stepId/reject` (reason required) |
+| Signatures | `GET/PUT /contracts/:id/signers` · `POST /contracts/:id/sign` · `POST /contracts/:id/decline-signature` · `GET /signers` (who may sign) |
+| External signing (no login; the emailed link is the credential) | `GET /signing/:token` · `GET /signing/:token/document` · `POST /signing/:token/sign` · `POST /signing/:token/decline` |
+| Notifications | `GET /notifications` · `GET /notifications/unread-count` · `POST /notifications/:id/read` · `POST /notifications/read-all` |
+| Audit (Legal, Admin) | `GET /audit` (filter by `action`, `userId`, `contractId`, `from`, `to`; cursor `before`) · `GET /contracts/:id/audit` |
 | Admin | `GET/POST /workflow-templates` · `GET/PUT/DELETE /workflow-templates/:id` · `POST /approvals/escalations/run` |
+| Home | `GET /dashboard` |
 | Reference | `GET/POST /counterparties` · `GET /departments` |
 
 `POST /contracts` and `PATCH /contracts/:id` accept JSON, or `multipart/form-data`
 with the JSON in a `data` field and the contract file (PDF/DOCX/DOC) in `document`.
 
-### Try the approval flow
+### Walkthrough
 
-With the seed loaded: log in as `sales@contracthub.dev` and submit
-"Acme Cloud hosting 2027" (45,000 USD). The *Vendor contracts* policy routes it to
-Sarah (Sales manager), then to Legal and Finance in parallel (Finance applies
-above 10,000). The procurement draft "Office supplies framework" (8,000 USD)
-shows Finance being skipped, with the reason recorded.
+Open http://localhost:4200. The login page has one-click buttons for the demo accounts.
+
+1. **Sami (employee)** opens "Acme Cloud hosting 2027" (45,000 USD). The
+   *Approvals* tab previews the policy: Manager, then Legal and Finance in
+   parallel (Finance applies above 10,000); executive sign-off is skipped with
+   its reason. Submit it.
+2. **Sarah (Sales manager)** gets a notification in the bell and approves.
+   Legal and Finance open at the same time.
+3. **Leila (Legal)** and **Farah (Finance)** approve from their *Approvals* page.
+   The contract is approved.
+4. **Sami** opens *Signatures*, picks Sarah plus an external signer.
+5. **Sarah** signs (typed or drawn). The external signer's email, with their
+   personal link, lands in Mailpit (http://localhost:8025, start it with
+   `docker compose up -d mailpit`); the link opens a public signing page.
+6. Once everyone signed, the contract is *Signed* (or *Active* if its start date
+   has passed). **Leila** can see the full audit trail under *Activity*.
+
+The procurement draft "Office supplies framework" (8,000 USD) shows Finance
+being skipped, with the reason recorded.
 
 ## Roadmap
 
@@ -115,6 +134,6 @@ shows Finance being skipped, with the reason recorded.
 - [x] Auth (JWT + refresh-token rotation with reuse detection) and RBAC
 - [x] Contracts CRUD with version history and file storage
 - [x] Approval workflow engine (state machine, conditional steps, escalation)
-- [ ] Notifications (email job queue + in-app bell) and audit logging
-- [ ] Angular UI: login, dashboard, contract detail, approvals, e-signature
+- [x] Notifications (email job queue + in-app bell) and audit logging
+- [x] Angular UI: login, dashboard, contract detail, approvals, e-signature
 - [ ] Seed data and demo walkthrough

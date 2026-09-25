@@ -9,6 +9,8 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   CORS_ORIGIN: z.string().default('http://localhost:4200'),
+  /** Public URL of the web app, used for links in emails. */
+  APP_URL: z.string().default('http://localhost:4200'),
   DATABASE_URL: z.string().min(1),
   /** Separate database used by the integration tests. */
   TEST_DATABASE_URL: z.string().optional(),
@@ -25,6 +27,8 @@ const EnvSchema = z.object({
 
   /** How often the escalation scheduler looks for overdue approval steps. 0 disables it. */
   ESCALATION_SCAN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(60_000),
+  /** How often the job worker polls for queued jobs (emails). 0 disables it. */
+  JOB_POLL_INTERVAL_MS: z.coerce.number().int().nonnegative().default(5_000),
 
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().int().default(1025),

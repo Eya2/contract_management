@@ -29,3 +29,17 @@ body {
   font-family: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+// Destructive dialog buttons and error toasts.
+.mat-mdc-unelevated-button.danger:not(:disabled) {
+  --mat-button-filled-container-color: #be123c;
+}
+.toast-error {
+  --mat-snack-bar-container-color: #9f1239;
+  --mat-snack-bar-button-color: #fecdd3;
+}
+
+// The notification menu needs more room than Material's default 280px menu width.
+.mat-mdc-menu-panel.notification-menu {
+  max-width: min(26rem, calc(100vw - 2rem));
+}
