@@ -644,6 +644,20 @@ export const FR: Record<string, string> = {
   'Every morning: approvals and signatures waiting for you, contracts ending this week and the day’s notifications. Not sent when there is nothing to report.': 'Chaque matin : les approbations et signatures qui vous attendent, les contrats qui se terminent cette semaine et les notifications de la veille. Rien n’est envoyé s’il n’y a rien à signaler.',
   'Notification settings saved': 'Préférences de notification enregistrées',
 
+  // --- Dashboard charts -------------------------------------------------------------
+  Insights: 'Indicateurs',
+  'Value signed per month': 'Valeur signée par mois',
+  'Last 12 months, in {c}': '12 derniers mois, en {c}',
+  'total {v}': 'total {v}',
+  'Upcoming renewal value': 'Valeur des renouvellements à venir',
+  'Ending in the next 6 months, in {c}': 'Échéances des 6 prochains mois, en {c}',
+  'Average approval time': 'Délai moyen d’approbation',
+  'From submission to final approval, last 12 months': 'De la soumission à l’approbation finale, 12 derniers mois',
+  '{n} approved': '{n} approuvé(s)',
+  'No completed approvals yet.': 'Aucune approbation terminée pour l’instant.',
+  Month: 'Mois',
+  '{n} h': '{n} h',
+
   // --- Renewals calendar --------------------------------------------------------
   'End dates and renewals of the contracts you can see, month by month.': 'Échéances et renouvellements des contrats que vous pouvez voir, mois par mois.',
   'Previous month': 'Mois précédent',

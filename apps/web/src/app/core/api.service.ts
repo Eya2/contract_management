@@ -19,6 +19,7 @@ import type {
   ContractSummary,
   Counterparty,
   Dashboard,
+  DashboardInsights,
   Page,
   PendingStep,
   PublicSigningView,
@@ -67,6 +68,7 @@ export class Api {
 
   // --- contracts -------------------------------------------------------------
   dashboard = () => this.get<Dashboard>('/api/dashboard');
+  insights = () => this.get<DashboardInsights>('/api/dashboard/insights');
   contracts = (q: ContractQuery) => this.get<Page<ContractSummary>>('/api/contracts', { ...q });
   contract = (id: string) => this.get<ContractDetail>(`/api/contracts/${id}`);
   createContract = (body: FormData) => this.post<ContractDetail>('/api/contracts', body);

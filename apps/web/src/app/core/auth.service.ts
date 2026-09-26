@@ -72,12 +72,30 @@ export class AuthService {
     return this.refreshing;
   }
 
-  private async postRefresh(): Promise<Session> {
+  /**
+   * Tabs share the refresh cookie, and each refresh retires it. Two tabs
+   * refreshing at once would make one of them fail and look signed out, so
+   * refreshes are serialised across tabs with a Web Lock. A 401 is still
+   * retried once: another tab may have rotated the cookie a moment earlier.
+   */
+  private postRefresh(): Promise<Session> {
+    const run = () => this.postRefreshWithRetry();
+    return navigator.locks ? navigator.locks.request('cms-session-refresh', run) : run();
+  }
+
+  private async postRefreshWithRetry(): Promise<Session> {
+    let retriedUnauthorized = false;
     for (let attempt = 1; ; attempt++) {
       try {
         return await firstValueFrom(this.http.post<Session>('/api/auth/refresh', {}));
       } catch (err) {
-        const unreachable = err instanceof HttpErrorResponse && [0, 502, 503, 504].includes(err.status);
+        const status = err instanceof HttpErrorResponse ? err.status : -1;
+        if (status === 401 && !retriedUnauthorized) {
+          retriedUnauthorized = true;
+          await new Promise((r) => setTimeout(r, 300));
+          continue;
+        }
+        const unreachable = [0, 502, 503, 504].includes(status);
         if (!unreachable || attempt >= UNREACHABLE_RETRIES) throw err;
         await new Promise((r) => setTimeout(r, attempt * 1000));
       }

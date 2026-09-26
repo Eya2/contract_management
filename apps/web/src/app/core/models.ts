@@ -279,6 +279,13 @@ export interface Dashboard {
   expiryWindowDays: number;
 }
 
+export interface DashboardInsights {
+  currencies: string[];
+  signedValue: { months: string[]; series: Record<string, number[]> };
+  upcomingRenewals: { months: string[]; risks: ('decision' | 'in-progress' | 'auto')[]; series: Record<string, Record<'decision' | 'in-progress' | 'auto', number[]>> };
+  approvalTime: { department: string; avgHours: number; count: number }[];
+}
+
 export interface NotificationPrefs {
   prefs: Record<string, { email: boolean; inApp: boolean }>;
   dailyDigest: boolean;

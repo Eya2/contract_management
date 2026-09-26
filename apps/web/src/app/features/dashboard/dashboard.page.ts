@@ -1,4 +1,4 @@
-import { Component, computed, inject, resource } from '@angular/core';
+import { Component, computed, inject, linkedSignal, resource } from '@angular/core';
 import { TPipe, locale, t } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,6 +7,7 @@ import { ContractStatus } from '@cms/shared';
 import { Api } from '../../core/api.service';
 import { LiveService } from '../../core/live.service';
 import { AuthService } from '../../core/auth.service';
+import { BarChart, type ChartSeries } from '../../shared/bar-chart';
 import { CountUp } from '../../shared/count-up';
 import { EmptyState } from '../../shared/empty-state';
 import { date, daysUntil, humanize, money } from '../../shared/format';
@@ -28,7 +29,7 @@ const BAR: Record<string, string> = {
 };
 
 @Component({
-  imports: [TPipe, RouterLink, MatButtonModule, MatIconModule, StatusBadge, PageHeader, CountUp, Skeleton, EmptyState],
+  imports: [TPipe, RouterLink, BarChart, MatButtonModule, MatIconModule, StatusBadge, PageHeader, CountUp, Skeleton, EmptyState],
   template: `
     <cms-page-header [eyebrow]="today()" [title]="'Good ' + greeting() + ', {name}' | t: { name: auth.user()?.firstName ?? '' }" [subtitle]="'Here is what needs your attention today.' | t">
       @if (auth.can('contract.create')) {
@@ -60,8 +61,66 @@ const BAR: Record<string, string> = {
       }
     </section>
 
-    <div class="mt-6 grid gap-6 xl:grid-cols-3">
-      <section class="card stagger overflow-hidden xl:col-span-2" style="--i: 4">
+    <!-- Charts -->
+    @if (insights.value(); as ins) {
+      <section class="mt-8" [attr.aria-label]="'Insights' | t">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 class="text-lg font-semibold">{{ 'Insights' | t }}</h2>
+          @if (ins.currencies.length > 1) {
+            <div class="flex gap-1 rounded-xl bg-subtle p-1" role="radiogroup" [attr.aria-label]="'Currency' | t">
+              @for (c of ins.currencies; track c) {
+                <button
+                  type="button"
+                  role="radio"
+                  [attr.aria-checked]="currency() === c"
+                  class="rounded-lg px-3 py-1 text-xs font-semibold text-muted transition-all hover:text-ink"
+                  [class]="currency() === c ? '!bg-card !text-ink shadow-sm ring-1 ring-line' : ''"
+                  (click)="currency.set(c)"
+                >
+                  {{ c }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+        <div class="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <article class="card stagger p-5" style="--i: 4">
+            <h3 class="font-semibold">{{ 'Value signed per month' | t }}</h3>
+            <p class="mb-5 text-xs text-muted">{{ 'Last 12 months, in {c}' | t: { c: currency() } }} · {{ 'total {v}' | t: { v: fmt(signedTotal()) } }}</p>
+            <cms-bar-chart [labels]="monthLabels(ins.signedValue.months)" [series]="signedSeries()" [format]="fmt" [axisFormat]="compact" [caption]="'Value signed per month' | t" [labelHeader]="'Month' | t" />
+          </article>
+          <article class="card stagger p-5" style="--i: 5">
+            <h3 class="font-semibold">{{ 'Upcoming renewal value' | t }}</h3>
+            <p class="mb-5 text-xs text-muted">{{ 'Ending in the next 6 months, in {c}' | t: { c: currency() } }} · {{ 'total {v}' | t: { v: fmt(renewalTotal()) } }}</p>
+            <cms-bar-chart [labels]="monthLabels(ins.upcomingRenewals.months)" [series]="renewalSeries()" [format]="fmt" [axisFormat]="compact" [caption]="'Upcoming renewal value' | t" [labelHeader]="'Month' | t" />
+          </article>
+          <article class="card stagger p-5 lg:col-span-2 xl:col-span-1" style="--i: 6">
+            <h3 class="font-semibold">{{ 'Average approval time' | t }}</h3>
+            <p class="mb-5 text-xs text-muted">{{ 'From submission to final approval, last 12 months' | t }}</p>
+            @if (ins.approvalTime.length) {
+              <ul class="space-y-3">
+                @for (d of ins.approvalTime; track d.department; let i = $index) {
+                  <li class="text-sm">
+                    <div class="mb-1 flex items-baseline justify-between gap-2">
+                      <span class="truncate text-body">{{ d.department }}</span>
+                      <span class="shrink-0 font-medium text-ink tabular-nums">{{ duration(d.avgHours) }}<span class="ml-1 text-xs font-normal text-faint">· {{ '{n} approved' | t: { n: d.count } }}</span></span>
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-full bg-subtle">
+                      <div class="h-full origin-left animate-[rise_0.6s_ease-out_both] rounded-full bg-brand-500" [style.width.%]="(d.avgHours / maxHours()) * 100 || 1" [style.animation-delay.ms]="i * 60"></div>
+                    </div>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="py-8 text-center text-sm text-muted">{{ 'No completed approvals yet.' | t }}</p>
+            }
+          </article>
+        </div>
+      </section>
+    }
+
+    <div class="mt-8 grid gap-6 xl:grid-cols-3">
+      <section class="card stagger overflow-hidden xl:col-span-2" style="--i: 7">
         <header class="flex items-center justify-between border-b border-line-soft px-5 py-4">
           <h2 class="font-semibold">{{ 'Recently updated' | t }}</h2>
           <a routerLink="/contracts" class="text-sm font-medium text-accent hover:underline">{{ 'View all' | t }}</a>
@@ -91,7 +150,7 @@ const BAR: Record<string, string> = {
       </section>
 
       <div class="space-y-6">
-        <section class="card stagger p-5" style="--i: 5">
+        <section class="card stagger p-5" style="--i: 8">
           <h2 class="font-semibold">{{ 'Portfolio' | t }}</h2>
           <p class="text-xs text-muted">{{ '{n} contracts you can see' | t: { n: total() } }}</p>
           <div class="mt-4 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-subtle" role="img" [attr.aria-label]="'Status distribution of {n} contracts' | t: { n: total() }">
@@ -112,7 +171,7 @@ const BAR: Record<string, string> = {
           </ul>
         </section>
 
-        <section class="card stagger overflow-hidden" style="--i: 6">
+        <section class="card stagger overflow-hidden" style="--i: 9">
           <header class="flex items-center gap-2 border-b border-line-soft px-5 py-4">
             <mat-icon class="text-seal-500">event_upcoming</mat-icon>
             <h2 class="font-semibold">{{ 'Ending in {n} days' | t: { n: data.value()?.expiryWindowDays ?? 30 } }}</h2>
@@ -142,8 +201,53 @@ export class DashboardPage {
   private readonly api = inject(Api);
   protected readonly data = resource({ loader: () => this.api.dashboard() });
 
+  protected readonly insights = resource({ loader: () => this.api.insights() });
+
   constructor() {
-    inject(LiveService).onContractChange(() => this.data.reload());
+    inject(LiveService).onContractChange(() => {
+      this.data.reload();
+      this.insights.reload();
+    });
+  }
+
+  /** The value charts show one currency at a time (no exchange rates); the most used by default. */
+  protected readonly currency = linkedSignal<string[] | undefined, string>({
+    source: () => this.insights.value()?.currencies,
+    computation: (list, previous) => (previous && list?.includes(previous.value) ? previous.value : (list?.[0] ?? 'EUR')),
+  });
+
+  protected readonly signedSeries = computed<ChartSeries[]>(() => {
+    const ins = this.insights.value();
+    const values = ins?.signedValue.series[this.currency()] ?? ins?.signedValue.months.map(() => 0) ?? [];
+    return [{ key: 'signed', label: t('Signed'), color: 'bg-brand-500', values }];
+  });
+  protected readonly signedTotal = computed(() => this.signedSeries()[0]!.values.reduce((a, b) => a + b, 0));
+
+  protected readonly renewalSeries = computed<ChartSeries[]>(() => {
+    const ins = this.insights.value();
+    const zeros = ins?.upcomingRenewals.months.map(() => 0) ?? [];
+    const s = ins?.upcomingRenewals.series[this.currency()];
+    return [
+      { key: 'decision', label: t('Needs a decision'), color: 'bg-amber-500', values: s?.decision ?? zeros },
+      { key: 'in-progress', label: t('Renewal in progress'), color: 'bg-sky-500', values: s?.['in-progress'] ?? zeros },
+      { key: 'auto', label: t('Renews automatically'), color: 'bg-emerald-500', values: s?.auto ?? zeros },
+    ];
+  });
+  protected readonly renewalTotal = computed(() => this.renewalSeries().reduce((sum, s) => sum + s.values.reduce((a, b) => a + b, 0), 0));
+  protected readonly maxHours = computed(() => Math.max(1, ...(this.insights.value()?.approvalTime.map((d) => d.avgHours) ?? [])));
+
+  protected readonly fmt = (n: number) => money(String(n), this.currency()).replace(/[.,]00(?=\D*$)/, '');
+  protected readonly compact = (n: number) => new Intl.NumberFormat(locale(), { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+
+  protected monthLabels(months: string[]) {
+    return months.map((m) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString(locale(), { month: 'short', timeZone: 'UTC' }));
+  }
+
+  /** "5 h", "3.5 days". */
+  protected duration(hours: number) {
+    if (hours < 24) return t('{n} h', { n: Math.round(hours) });
+    const days = Math.round((hours / 24) * 10) / 10;
+    return t('{n} days', { n: days.toLocaleString(locale()) });
   }
 
   protected readonly money = money;
