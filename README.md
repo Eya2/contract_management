@@ -72,11 +72,14 @@ tamper-proof audit trail.
 - **Reminders at 30, 7 and 1 days** before the end date, to the owner and the department head. Each reminder is sent exactly once.
 - At the end of the term: **automatic renewal** on the same terms, **renewed** (if a renewal was already signed), or **expired**.
 - **Manual renewal** creates a draft for the next term, with calendar-aware dates (whole months stay whole months, including across leap years).
+- A **renewals calendar**: a month view of end dates, colour-coded by what each needs (overdue, needs a decision, renewal in progress, renews automatically, already covered). The legend filters it, and it works with the keyboard.
 
 ### Notifications and audit
 
 - An **in-app bell** with a live unread count, plus a full notifications page.
+- **Live updates**: the bell, counters and open pages refresh the moment something happens (Server-Sent Events fed by Postgres `LISTEN/NOTIFY`, so it works across several API instances), with a toast for new notifications.
 - **Email** for every event, delivered through a Postgres job queue with retries. An admin screen shows what was sent, queued or failed, and can retry.
+- **Notification settings**: each person chooses in-app, email or both per event type, and can turn on a **daily summary email** (work waiting for them, contracts ending this week, the day's notifications).
 - An **append-only audit log**: the database itself refuses `UPDATE` and `DELETE`. Every sign-in, view, download, decision and signature is recorded with the user and IP.
 
 ### Administration
@@ -88,7 +91,9 @@ tamper-proof audit trail.
 ### Accounts and experience
 
 - **Keep me signed in** (a 30-day session) or a browser session. **Forgot password** with a single-use, one-hour email link. **Change password** signs out every other device.
-- **English and French**, switchable instantly (dates and amounts follow the language). **Light, dark and system themes**, a responsive layout (works on phones), subtle animations that respect *reduced motion*, and loading skeletons and empty states throughout.
+- **English and French**, switchable instantly (dates and amounts follow the language). Text the server writes (notifications, emails, skip reasons, routing notes, status reasons) follows it too, and emails go out in each recipient's language.
+- A **dashboard with charts**: value signed per month, upcoming renewal value by risk, and average approval time per department (one currency at a time).
+- **Accessible**: tables, lists and the calendar are navigable with the arrow keys, and text colours meet WCAG AA contrast in both themes. **Light, dark and system themes**, a responsive layout (works on phones), subtle animations that respect *reduced motion*, and loading skeletons and empty states throughout.
 
 ---
 
@@ -215,6 +220,10 @@ Every email (approval requests, signing links, reminders, password resets) goes
 through a job queue. Admins can see what happened to each one under
 **Administration → Email delivery**, and retry failed ones.
 
+Emails are written in the recipient's language (the one they last picked in the
+app). Daily summaries go out from `DIGEST_HOUR_UTC` (default 7) to the people
+who turned them on in **Account settings**.
+
 ### Development: Mailpit (default)
 
 Mailpit catches every email in a local inbox: http://localhost:8025. Nothing
@@ -288,7 +297,7 @@ except authentication and the external signing links.
 
 | Area | Endpoints |
 | ---- | --------- |
-| Auth | `POST /auth/login` (`remember`) · `POST /auth/refresh` · `POST /auth/logout` · `GET/PATCH /auth/me` · `POST /auth/forgot-password` · `GET/POST /auth/reset-password` · `POST /auth/change-password` |
+| Auth | `POST /auth/login` (`remember`) · `POST /auth/refresh` · `POST /auth/logout` · `GET/PATCH /auth/me` · `PUT /auth/me/locale` · `POST /auth/forgot-password` · `GET/POST /auth/reset-password` · `POST /auth/change-password` |
 | Contracts | `GET /contracts` (filters, sort, paging) · `GET /contracts/export.csv` · `POST /contracts` · `GET /contracts/:id` · `PATCH /contracts/:id` (`expectedVersion`) · `POST /contracts/:id/terminate` · `POST /contracts/:id/renew` |
 | History | `GET /contracts/:id/versions` · `GET /contracts/:id/versions/:n` · `GET /contracts/:id/versions/diff?from=&to=` · `GET /contracts/:id/timeline` |
 | Documents | `GET /contracts/:id/versions/:n/pdf?lang=en\|fr` · `GET …/versions/:n/document` · `POST /contracts/:id/attachments` · `GET …/attachments/:attId/download` · `DELETE …/attachments/:attId` |
@@ -296,9 +305,11 @@ except authentication and the external signing links.
 | Approvers | `GET /approvals/pending` · `POST /approvals/steps/:stepId/approve` · `POST /approvals/steps/:stepId/reject` |
 | Signatures | `GET/PUT /contracts/:id/signers` · `POST /contracts/:id/sign` · `POST /contracts/:id/decline-signature` · `GET /signers` |
 | External signing | `GET /signing/:token` · `GET /signing/:token/pdf` · `POST /signing/:token/sign` · `POST /signing/:token/decline` |
-| Notifications | `GET /notifications` · `GET /notifications/unread-count` · `POST /notifications/:id/read` · `POST /notifications/read-all` |
+| Notifications | `GET /notifications` · `GET /notifications/unread-count` · `POST /notifications/:id/read` · `POST /notifications/read-all` · `GET/PUT /notifications/preferences` |
+| Live | `GET /events` (Server-Sent Events: `notification`, `contract`) |
+| Renewals | `GET /renewals/calendar?from=&to=` |
 | Admin | `GET/POST /users` · `PATCH /users/:id` · `GET /departments/overview` · `POST /departments` · `PUT /departments/:id/head` · `GET/POST /workflow-templates` · `GET/PUT/DELETE /workflow-templates/:id` · `GET /admin/emails` · `POST /admin/emails/retry` · `GET /audit` · `POST /approvals/escalations/run` |
-| Home | `GET /dashboard` |
+| Home | `GET /dashboard` · `GET /dashboard/insights` |
 
 ---
 
@@ -316,7 +327,7 @@ pull request. It typechecks and tests the API against a real PostgreSQL
 database, tests and builds the web app (the build fails if the bundle budget is
 exceeded), and builds both Docker images, publishing them from `main`.
 
-The API has 176 tests. Unit tests cover the workflow engine,
+The API has 200 tests. Unit tests cover the workflow engine,
 conditions, content hashing and diffs, renewal date arithmetic and permissions.
 Integration tests run against a real PostgreSQL database (`TEST_DATABASE_URL`)
 and cover contracts, uploads, the approval workflow, escalation, signing,
@@ -328,6 +339,7 @@ never wipe data: every test creates its own uniquely named records.
 | `npm run db:up` | Start Postgres and Mailpit in Docker |
 | `npm run db:migrate` | Apply migrations and generate the Prisma client |
 | `npm run db:seed` | Load demo users, policies and contracts (idempotent) |
+| `npm run db:backfill-messages -w @cms/api` | Make server texts stored before translation available in French (safe to rerun) |
 | `npm run db:studio -w @cms/api` | Browse the database in Prisma Studio |
 | `npm run build -w @cms/web` | Production build of the web app |
 
@@ -367,3 +379,5 @@ scripts/            screenshot generator
 - [x] Seed data and demo walkthrough
 - [x] French interface (switch EN / FR in the sidebar; PDFs in both languages)
 - [x] Docker images and CI
+- [x] Renewals calendar, live updates, notification settings with a daily summary, dashboard charts
+- [x] Server messages in French, keyboard navigation and contrast pass
