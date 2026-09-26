@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { ContractStatus } from '@cms/shared';
 import { Api } from '../../core/api.service';
+import { LiveService } from '../../core/live.service';
 import { AuthService } from '../../core/auth.service';
 import { CountUp } from '../../shared/count-up';
 import { EmptyState } from '../../shared/empty-state';
@@ -140,6 +141,11 @@ export class DashboardPage {
   protected readonly auth = inject(AuthService);
   private readonly api = inject(Api);
   protected readonly data = resource({ loader: () => this.api.dashboard() });
+
+  constructor() {
+    inject(LiveService).onContractChange(() => this.data.reload());
+  }
+
   protected readonly money = money;
   protected readonly date = date;
   protected readonly today = computed(() => new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' }));

@@ -1,14 +1,17 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { TPipe } from '../core/i18n';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { CountsService } from '../core/counts.service';
+import { t } from '../core/i18n';
+import { LiveService } from '../core/live.service';
 import { Avatar } from '../shared/avatar';
 import { humanize } from '../shared/format';
 import { Logo } from '../shared/logo';
@@ -174,6 +177,18 @@ export class Shell {
 
   constructor() {
     void this.counts.refresh();
+    // Live updates while signed in; a new notification also pops a toast.
+    const live = inject(LiveService);
+    const snack = inject(MatSnackBar);
+    live.start();
+    inject(DestroyRef).onDestroy(() => live.stop());
+    live.on((m) => {
+      if (m.type !== 'notification' || !m.title) return;
+      snack
+        .open(m.title, t('View'), { duration: 6000, horizontalPosition: 'end', verticalPosition: 'bottom' })
+        .onAction()
+        .subscribe(() => void this.router.navigate(['/notifications']));
+    });
     // Keep the counters fresh after navigating (e.g. back from approving something).
     this.router.events.subscribe((e) => {
       if (e instanceof NavigationEnd) void this.counts.refresh();

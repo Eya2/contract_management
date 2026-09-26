@@ -1,4 +1,5 @@
 import type { NotificationType } from '../../generated/prisma/enums.js';
+import { publish } from '../../lib/live.js';
 import type { DbClient } from '../../lib/prisma.js';
 
 export interface NotificationMessage {
@@ -43,6 +44,7 @@ export async function notify(tx: DbClient, userIds: Iterable<string>, message: N
     })),
     skipDuplicates: true,
   });
+  await publish(tx, { kind: 'notification', userIds: users.map((u) => u.id), title: message.title });
   await tx.job.createMany({
     data: users.map((u) => ({
       type: 'email.send',

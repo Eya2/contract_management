@@ -8,6 +8,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Api } from '../../core/api.service';
+import { LiveService } from '../../core/live.service';
 import { AuthService } from '../../core/auth.service';
 import { CountsService } from '../../core/counts.service';
 import type { ContractDetail } from '../../core/models';
@@ -218,7 +219,7 @@ const MILESTONES = [
           </div>
         </mat-tab>
         <mat-tab [label]="'Approvals' | t">
-          <div class="pt-6"><cms-approvals-panel [contractId]="c.id" [status]="c.status" [reference]="c.referenceNumber" [title]="c.title" (changed)="refresh()" /></div>
+          <div class="pt-6"><cms-approvals-panel [contractId]="c.id" [revision]="revision()" [status]="c.status" [reference]="c.referenceNumber" [title]="c.title" (changed)="refresh()" /></div>
         </mat-tab>
         <mat-tab [label]="'Signatures' | t">
           <div class="pt-6"><cms-signatures-panel [contract]="c" (changed)="refresh()" /></div>
@@ -249,6 +250,11 @@ export class ContractDetailPage {
   protected readonly revision = signal(0);
   protected readonly busy = signal(false);
   protected readonly contract = resource({ params: () => this.id(), loader: ({ params }) => this.api.contract(params) });
+
+  constructor() {
+    // Someone else approved, signed or edited it: refresh in place.
+    inject(LiveService).onContractChange(() => this.refresh(), this.id);
+  }
   protected readonly tabIndex = linkedSignal(() => Math.max(0, TABS.indexOf((this.tab() ?? 'overview') as (typeof TABS)[number])));
   protected readonly milestones = MILESTONES;
   protected readonly typeIcon = TYPE_ICON;

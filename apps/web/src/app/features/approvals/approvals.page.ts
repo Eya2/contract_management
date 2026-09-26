@@ -5,6 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { Api } from '../../core/api.service';
+import { LiveService } from '../../core/live.service';
 import type { PendingStep } from '../../core/models';
 import { CountsService } from '../../core/counts.service';
 import { Toast } from '../../core/toast.service';
@@ -73,6 +74,11 @@ export class ApprovalsPage {
   private readonly toast = inject(Toast);
   private readonly counts = inject(CountsService);
   protected readonly queue = resource({ loader: () => this.api.pendingApprovals() });
+
+  constructor() {
+    inject(LiveService).onContractChange(() => this.queue.reload());
+  }
+
   protected readonly money = money;
   protected readonly humanize = humanize;
   protected readonly fullName = fullName;

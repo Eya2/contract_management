@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Api } from '../../core/api.service';
+import { LiveService } from '../../core/live.service';
 import { TPipe, lang, locale, t } from '../../core/i18n';
 import type { RenewalEntry, RenewalRisk } from '../../core/models';
 import { EmptyState } from '../../shared/empty-state';
@@ -241,6 +242,11 @@ export class RenewalsPage {
     params: () => ({ from: isoDay(this.range().from), to: isoDay(this.range().to) }),
     loader: ({ params }) => this.api.renewalCalendar(params.from, params.to),
   });
+
+  constructor() {
+    inject(LiveService).onContractChange(() => this.entries.reload());
+  }
+
 
   protected readonly riskFilter = computed(() => (RISKS.some((r) => r.key === this.risk()) ? (this.risk() as RenewalRisk) : null));
   protected readonly shown = (r: RenewalRisk) => !this.riskFilter() || this.riskFilter() === r;

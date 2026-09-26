@@ -625,6 +625,8 @@ export const FR: Record<string, string> = {
   Documents: 'Documents',
   'No events': 'Aucun événement',
 
+  View: 'Voir',
+
   // --- Renewals calendar --------------------------------------------------------
   'End dates and renewals of the contracts you can see, month by month.': 'Échéances et renouvellements des contrats que vous pouvez voir, mois par mois.',
   'Previous month': 'Mois précédent',

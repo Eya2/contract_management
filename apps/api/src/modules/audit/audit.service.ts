@@ -1,7 +1,11 @@
 import { getRequestContext } from '../../common/context/request-context.js';
+import { publish } from '../../lib/live.js';
 import type { DbClient } from '../../lib/prisma.js';
 import { prisma } from '../../lib/prisma.js';
 import type { AuditAction, Prisma } from '../../generated/prisma/client.js';
+
+/** Audited actions that don't change the contract. */
+const READS = new Set<AuditAction>(['CONTRACT_VIEWED', 'DOCUMENT_DOWNLOADED']);
 
 export interface AuditEntry {
   action: AuditAction;
@@ -34,4 +38,8 @@ export async function recordAudit(entry: AuditEntry, db: DbClient = prisma): Pro
       userAgent: ctx?.userAgent,
     },
   });
+  // Every change to a contract is audited, so this is where clients learn about
+  // it. Reads are audited too but change nothing (and a page reloading on its
+  // own view would loop).
+  if (entry.contractId && !READS.has(entry.action)) await publish(db, { kind: 'contract', contractId: entry.contractId });
 }

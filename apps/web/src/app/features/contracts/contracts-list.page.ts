@@ -9,6 +9,7 @@ import { TranslatedPaginatorIntl } from '../../shared/paginator-intl';
 import { Router, RouterLink } from '@angular/router';
 import { ContractType } from '@cms/shared';
 import { Api } from '../../core/api.service';
+import { LiveService } from '../../core/live.service';
 import { AuthService } from '../../core/auth.service';
 import { Avatar } from '../../shared/avatar';
 import { EmptyState } from '../../shared/empty-state';
@@ -201,6 +202,11 @@ export class ContractsListPage {
     }),
     loader: ({ params }) => this.api.contracts(params),
   });
+
+  constructor() {
+    inject(LiveService).onContractChange(() => this.list.reload());
+  }
+
 
   protected readonly views = VIEWS;
   protected readonly allTypes = Object.values(ContractType);

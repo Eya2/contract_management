@@ -121,10 +121,12 @@ export class ApprovalsPanel {
   readonly status = input.required<string>();
   readonly reference = input('');
   readonly title = input('');
+  /** Bumped by the page when the contract changed without a status change (e.g. one step approved). */
+  readonly revision = input(0);
   readonly changed = output<void>();
 
   protected readonly requests = resource({
-    params: () => ({ id: this.contractId(), status: this.status() }),
+    params: () => ({ id: this.contractId(), status: this.status(), r: this.revision() }),
     loader: ({ params }) => this.api.approvals(params.id),
   });
   protected readonly preview = resource({
