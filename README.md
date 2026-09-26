@@ -162,13 +162,27 @@ All demo accounts use the password **`Demo1234!`**. The sign-in page has one-cli
 | `procurement.manager@contracthub.dev` (Omar) | Manager, Procurement (head) | Approve and sign Procurement contracts |
 | `admin@contracthub.dev` (Alex) | Admin | Users, policies, email delivery, audit |
 
+More people to explore other departments: `amira.sales@`, `finance2@`, `hr.manager@` / `hr@`,
+`it.manager@` / `it@`, `marketing.manager@` / `marketing@` (all `@contracthub.dev`, same password).
+
 ---
 
 ## Demo walkthrough
 
-The seed creates contracts at every stage of the lifecycle, taken through the
-real workflow, so their timelines, approvals, signatures and audit logs are
-genuine.
+The seed builds a realistic workspace: **8 departments, 16 people, about 25
+counterparties** (companies in six countries, plus future employees) and **about
+40 contracts** in EUR, USD, GBP and TND. They cover client and vendor agreements,
+NDAs and employment contracts, in every state: in force, expired, renewed
+automatically, terminated with a reason, awaiting signature, partly approved,
+overdue and escalated, rejected, revised as version 2, withdrawn, and drafts
+with an edit history.
+
+Every contract is taken through the real workflow (the same services the app
+uses), so versions, timelines, approvals, signatures and notifications are
+genuine. The history is then spread over the past 18 months. (Audit log entries
+keep the date the seed ran: the database doesn't allow them to be edited.)
+
+A few to start with:
 
 | Contract | State | What it shows |
 | -------- | ----- | ------------- |

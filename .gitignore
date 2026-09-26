@@ -12,5 +12,5 @@ apps/api/storage/
 # Generated Prisma client
 apps/api/src/generated/
 
-# Local editor and tooling config
-.claude/
+# Local list of accounts and passwords (never commit)
+comptes-utilisateurs.xlsx

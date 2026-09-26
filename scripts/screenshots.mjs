@@ -31,10 +31,15 @@ async function session(email, { theme = 'light', width = 1440, height = 900, mob
     isMobile: mobile,
     hasTouch: mobile,
     colorScheme: theme,
+    // English, whatever the machine's language (the app follows the browser's).
+    locale: 'en-US',
     storageState: email ? sessions.get(email) : undefined,
   });
   // The theme preference and reduced motion: screenshots shouldn't catch half-finished animations.
-  await context.addInitScript((t) => localStorage.setItem('cms-theme', t), theme);
+  await context.addInitScript((t) => {
+    localStorage.setItem('cms-theme', t);
+    localStorage.setItem('cms-lang', 'en');
+  }, theme);
   const page = await context.newPage();
   await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: theme });
   if (email && !sessions.has(email)) {

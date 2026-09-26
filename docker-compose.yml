@@ -11,6 +11,7 @@
 #   mailpit  – SMTP catcher: every email the app sends shows up at http://localhost:8025
 services:
   postgres:
+    restart: unless-stopped # come back after a Docker restart or update
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: cms
@@ -27,12 +28,14 @@ services:
       retries: 10
 
   mailpit:
+    restart: unless-stopped # come back after a Docker restart or update
     image: axllent/mailpit:latest
     ports:
       - "1025:1025" # SMTP
       - "8025:8025" # Web UI
 
   api:
+    restart: unless-stopped # come back after a Docker restart or update
     profiles: [app]
     build:
       context: .
@@ -56,6 +59,7 @@ services:
         condition: service_healthy
 
   web:
+    restart: unless-stopped # come back after a Docker restart or update
     profiles: [app]
     build:
       context: .

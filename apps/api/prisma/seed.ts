@@ -13,7 +13,10 @@ import { randomBytes } from 'node:crypto';
 import { sha256Hex } from '../src/lib/storage.js';
 import { hashPassword } from '../src/modules/auth/password.js';
 import { contractService } from '../src/modules/contracts/contract.service.js';
+import { renewalService } from '../src/modules/renewals/renewal.service.js';
 import { signingService } from '../src/modules/signing/signing.service.js';
+import { escalationService } from '../src/modules/workflow/escalation.service.js';
+import { seedPortfolio } from './seed-portfolio.js';
 import { approvalService } from '../src/modules/workflow/approval.service.js';
 
 export const DEMO_PASSWORD = 'Demo1234!';
@@ -24,6 +27,9 @@ const departments = [
   { code: 'SAL', name: 'Sales' },
   { code: 'PRC', name: 'Procurement' },
   { code: 'OPS', name: 'Operations' },
+  { code: 'HR', name: 'Human Resources' },
+  { code: 'IT', name: 'IT' },
+  { code: 'MKT', name: 'Marketing' },
 ] as const;
 
 type DeptCode = (typeof departments)[number]['code'];
@@ -37,6 +43,14 @@ const users: { email: string; firstName: string; lastName: string; role: Role; d
   { email: 'sales@contracthub.dev', firstName: 'Sami', lastName: 'Trabelsi', role: 'EMPLOYEE', dept: 'SAL' },
   { email: 'procurement.manager@contracthub.dev', firstName: 'Omar', lastName: 'Khalil', role: 'MANAGER', dept: 'PRC', head: true },
   { email: 'procurement@contracthub.dev', firstName: 'Nour', lastName: 'Saidi', role: 'EMPLOYEE', dept: 'PRC' },
+  { email: 'amira.sales@contracthub.dev', firstName: 'Amira', lastName: 'Ben Salah', role: 'EMPLOYEE', dept: 'SAL' },
+  { email: 'finance2@contracthub.dev', firstName: 'Olivier', lastName: 'Martin', role: 'FINANCE', dept: 'FIN' },
+  { email: 'hr.manager@contracthub.dev', firstName: 'Yasmine', lastName: 'Belhadj', role: 'MANAGER', dept: 'HR', head: true },
+  { email: 'hr@contracthub.dev', firstName: 'Lina', lastName: 'Chaabane', role: 'EMPLOYEE', dept: 'HR' },
+  { email: 'it.manager@contracthub.dev', firstName: 'Mehdi', lastName: 'Jlassi', role: 'MANAGER', dept: 'IT', head: true },
+  { email: 'it@contracthub.dev', firstName: 'Rania', lastName: 'Ferchichi', role: 'EMPLOYEE', dept: 'IT' },
+  { email: 'marketing.manager@contracthub.dev', firstName: 'Claire', lastName: 'Dubois', role: 'MANAGER', dept: 'MKT', head: true },
+  { email: 'marketing@contracthub.dev', firstName: 'Youssef', lastName: 'Gharbi', role: 'EMPLOYEE', dept: 'MKT' },
 ];
 
 async function main() {
@@ -61,7 +75,14 @@ async function main() {
   await seedWorkflowTemplates();
   const counterparties = await seedCounterparties();
   const ndaTemplateId = await seedContractTemplate();
-  const created = (await seedDemoContracts(counterparties, ndaTemplateId)) + (await seedLifecycleStories(counterparties));
+  const created =
+    (await seedDemoContracts(counterparties, ndaTemplateId)) + (await seedLifecycleStories(counterparties)) + (await seedPortfolio());
+
+  // Let the schedulers catch up on the backdated history: overdue approvals are
+  // escalated, contracts past their end date expire or renew, reminders go out.
+  const renewals = await renewalService.runOnce();
+  const { escalated } = await escalationService.runOnce();
+  console.log(`Schedulers: ${renewals.expired} expired, ${renewals.autoRenewed} renewed automatically, ${renewals.reminded} reminders, ${escalated} escalations`);
 
   console.log(
     `Seeded ${departments.length} departments, ${users.length} users (password: ${DEMO_PASSWORD}), ` +

@@ -12,20 +12,10 @@ import { AuthService } from '../../core/auth.service';
 import { errorMessage } from '../../core/errors';
 import { LangSwitch } from '../../layout/lang-switch';
 import { ThemeSwitch } from '../../layout/theme-switch';
-import { Avatar } from '../../shared/avatar';
 import { Logo } from '../../shared/logo';
 
-/** Seeded demo accounts (see README), to try each role in one click. */
-const DEMO = [
-  { email: 'sales@contracthub.dev', name: 'Sami Trabelsi', role: 'Employee · Sales' },
-  { email: 'sales.manager@contracthub.dev', name: 'Sarah Collins', role: 'Manager · Sales' },
-  { email: 'legal@contracthub.dev', name: 'Leila Haddad', role: 'Legal' },
-  { email: 'finance@contracthub.dev', name: 'Farah Ben Ali', role: 'Finance' },
-  { email: 'admin@contracthub.dev', name: 'Alex Morgan', role: 'Admin' },
-];
-
 @Component({
-  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, Logo, Avatar, ThemeSwitch, LangSwitch],
+  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, Logo, ThemeSwitch, LangSwitch],
   styles: `
     .sig {
       stroke-dasharray: 260;
@@ -129,31 +119,9 @@ const DEMO = [
               @if (busy()) {
                 <mat-spinner diameter="18" class="!mr-2 inline-block" />
               }
-              Sign in
+              {{ 'Sign in' | t }}
             </button>
           </form>
-
-          <div class="mt-10">
-            <div class="mb-3 flex items-center gap-3 text-xs text-faint">
-              <span class="h-px flex-1 bg-line"></span>{{ 'Try a demo account' | t }}<span class="h-px flex-1 bg-line"></span>
-            </div>
-            <div class="grid gap-1.5">
-              @for (d of demo; track d.email; let i = $index) {
-                <button
-                  type="button"
-                  class="stagger flex items-center gap-3 rounded-xl px-3 py-2 text-left ring-1 ring-line transition-all hover:bg-subtle hover:ring-[var(--accent)]"
-                  [style.--i]="i"
-                  (click)="useDemo(d.email)"
-                  [disabled]="busy()"
-                >
-                  <cms-avatar [name]="d.name" [size]="30" />
-                  <span class="flex-1 text-sm"><span class="font-medium text-ink">{{ d.name }}</span><span class="text-muted">&nbsp;· {{ d.role | t }}</span></span>
-                  <mat-icon class="!size-4 !text-[16px] text-faint">arrow_forward</mat-icon>
-                </button>
-              }
-            </div>
-            <p class="mt-3 text-center text-xs text-faint">{{ 'Demo password: Demo1234!' | t }}</p>
-          </div>
         </div>
       </section>
     </div>
@@ -169,18 +137,11 @@ export class LoginPage {
   protected readonly remember = signal(true);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly demo = DEMO;
   protected readonly features = [
     { icon: 'account_tree', title: 'Smart approvals', text: 'Conditional, parallel, escalated.' },
     { icon: 'draw', title: 'E-signature', text: 'Evidence for every signature.' },
     { icon: 'event_repeat', title: 'Renewals', text: 'Reminders at 30, 7 and 1 days.' },
   ];
-
-  protected useDemo(email: string) {
-    this.email.set(email);
-    this.password.set('Demo1234!');
-    void this.submit();
-  }
 
   protected async submit() {
     this.busy.set(true);
