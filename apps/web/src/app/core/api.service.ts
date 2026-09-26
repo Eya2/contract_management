@@ -18,6 +18,7 @@ import type {
   ContractDetail,
   ContractSummary,
   Counterparty,
+  CommentThread,
   Dashboard,
   DashboardInsights,
   Page,
@@ -29,6 +30,7 @@ import type {
   TimelineEntry,
   VersionDetail,
   VersionDiff,
+  UserSummary,
   VersionSummary,
 } from './models';
 
@@ -117,6 +119,13 @@ export class Api {
 
   notificationPrefs = () => this.get<NotificationPrefs>('/api/notifications/preferences');
   saveNotificationPrefs = (body: NotificationPrefs) => firstValueFrom(this.http.put<NotificationPrefs>('/api/notifications/preferences', body));
+  comments = (id: string) => this.get<CommentThread[]>(`/api/contracts/${id}/comments`);
+  commentParticipants = (id: string) => this.get<UserSummary[]>(`/api/contracts/${id}/comment-participants`);
+  addComment = (id: string, body: { body: string; clauseKey?: string | null; parentId?: string; mentions?: string[] }) =>
+    this.post<{ id: string }>(`/api/contracts/${id}/comments`, body);
+  editComment = (commentId: string, body: string) => firstValueFrom(this.http.patch<void>(`/api/comments/${commentId}`, { body }));
+  deleteComment = (commentId: string) => firstValueFrom(this.http.delete<void>(`/api/comments/${commentId}`));
+  resolveComment = (commentId: string, resolved: boolean) => this.post<void>(`/api/comments/${commentId}/${resolved ? 'resolve' : 'reopen'}`);
   renewalCalendar = (from: string, to: string) => this.get<RenewalEntry[]>('/api/renewals/calendar', { from, to });
   terminate = (id: string, reason: string) => this.post<ContractDetail>(`/api/contracts/${id}/terminate`, { reason });
   exportContracts = (q: ContractQuery) => {

@@ -11,6 +11,7 @@ import { logger } from './lib/logger.js';
 import { jobsRouter } from './modules/admin/jobs.routes.js';
 import { auditRouter, contractAuditRouter } from './modules/audit/audit.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
+import { commentsRouter, contractCommentsRouter } from './modules/comments/comments.routes.js';
 import { contractsRouter } from './modules/contracts/contracts.routes.js';
 import { counterpartiesRouter } from './modules/counterparties/counterparties.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
@@ -58,7 +59,8 @@ export function createApp() {
   app.use('/api/users', usersRouter);
   app.use('/api/departments', departmentsRouter);
   app.use('/api/counterparties', counterpartiesRouter);
-  app.use('/api/contracts', contractsRouter, contractWorkflowRouter, contractSigningRouter, contractAuditRouter, contractRenewalRouter, contractPdfRouter);
+  app.use('/api/contracts', contractsRouter, contractWorkflowRouter, contractSigningRouter, contractAuditRouter, contractRenewalRouter, contractPdfRouter, contractCommentsRouter);
+  app.use('/api/comments', commentsRouter);
   app.use('/api/approvals', approvalsRouter);
   app.use('/api/workflow-templates', workflowTemplatesRouter);
   app.use('/api/notifications', notificationsRouter);

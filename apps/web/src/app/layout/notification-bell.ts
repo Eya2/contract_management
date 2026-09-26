@@ -20,6 +20,9 @@ const ICONS: Record<string, string> = {
   SIGNATURE_REQUESTED: 'draw',
   CONTRACT_SIGNED: 'handshake',
   CONTRACT_EXPIRING: 'event_upcoming',
+  COMMENT_ADDED: 'add_comment',
+  COMMENT_REPLY: 'forum',
+  COMMENT_MENTION: 'alternate_email',
 };
 
 /** The bell: unread count (from CountsService) and a menu of the latest notifications. */

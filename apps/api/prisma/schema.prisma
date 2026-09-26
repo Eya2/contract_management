@@ -113,6 +113,8 @@ enum NotificationType {
   CONTRACT_EXPIRING
   COMMENT_MENTION
   COMMENT_REPLY
+  /// A new comment on a contract you own.
+  COMMENT_ADDED
 }
 
 enum JobStatus {

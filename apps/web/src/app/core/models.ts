@@ -281,6 +281,29 @@ export interface Dashboard {
   expiryWindowDays: number;
 }
 
+export interface CommentItem {
+  id: string;
+  author: UserSummary;
+  /** Null once deleted. */
+  body: string | null;
+  deleted: boolean;
+  createdAt: string;
+  editedAt: string | null;
+  versionNumber: number;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+export interface CommentThread extends CommentItem {
+  clause: { key: string; heading: string } | null;
+  /** The clause changed (or was removed) since the thread started. */
+  outdated: boolean;
+  resolvedAt: string | null;
+  resolvedBy: UserSummary | null;
+  canResolve: boolean;
+  replies: CommentItem[];
+}
+
 export interface DashboardInsights {
   currencies: string[];
   signedValue: { months: string[]; series: Record<string, number[]> };

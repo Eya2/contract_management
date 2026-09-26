@@ -1,5 +1,5 @@
-import { Component, computed, inject, input, linkedSignal, resource, signal } from '@angular/core';
-import { TPipe, t } from '../../core/i18n';
+import { afterNextRender, Component, computed, effect, inject, Injector, input, linkedSignal, resource, signal, untracked } from '@angular/core';
+import { TPipe, lang, t } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,7 +11,7 @@ import { Api } from '../../core/api.service';
 import { LiveService } from '../../core/live.service';
 import { AuthService } from '../../core/auth.service';
 import { CountsService } from '../../core/counts.service';
-import type { ContractDetail } from '../../core/models';
+import type { CommentThread, ContractDetail } from '../../core/models';
 import { Toast } from '../../core/toast.service';
 import { Avatar } from '../../shared/avatar';
 import { date, dateTime, daysUntil, fileSize, fullName, humanize, money } from '../../shared/format';
@@ -21,6 +21,7 @@ import { Skeleton } from '../../shared/skeleton';
 import { StatusBadge } from '../../shared/status-badge';
 import { ActivityPanel } from './activity-panel';
 import { ApprovalsPanel } from './approvals-panel';
+import { Discussion } from './discussion';
 import { TYPE_ICON } from './contracts-list.page';
 import { SignaturesPanel } from './signatures-panel';
 import { VersionsPanel } from './versions-panel';
@@ -38,7 +39,7 @@ const MILESTONES = [
 ];
 
 @Component({
-  imports: [TPipe, 
+  imports: [Discussion, TPipe, 
     RouterLink,
     MatButtonModule,
     MatIconModule,
@@ -163,12 +164,37 @@ const MILESTONES = [
                 <h2 class="mb-1 font-semibold">{{ 'Clauses' | t }}</h2>
                 @for (cl of c.currentVersion.clauses; track cl.key; let i = $index) {
                   <article class="stagger border-t border-line-soft py-4 first-of-type:border-0" [style.--i]="i">
-                    <h3 class="font-medium"><span class="mr-1 text-faint tabular-nums">{{ i + 1 }}.</span> {{ cl.heading }}</h3>
+                    <div class="flex items-start gap-3">
+                      <h3 class="flex-1 font-medium"><span class="mr-1 text-faint tabular-nums">{{ i + 1 }}.</span> {{ cl.heading }}</h3>
+                      <button
+                        type="button"
+                        class="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 transition-colors ring-inset"
+                        [class]="openCount(cl.key) ? 'bg-accent-soft text-accent-ink ring-[var(--accent)]/30' : 'text-muted ring-line hover:text-ink'"
+                        [attr.aria-expanded]="openClauses().has(cl.key)"
+                        [attr.aria-label]="('Comments on {clause}' | t: { clause: cl.heading }) + (openCount(cl.key) ? ' (' + openCount(cl.key) + ')' : '')"
+                        (click)="toggleClause(cl.key)"
+                      >
+                        <mat-icon class="!size-4 !text-[16px]">{{ openCount(cl.key) ? 'forum' : 'add_comment' }}</mat-icon>
+                        @if (threadsFor(cl.key).length) {
+                          <span class="tabular-nums">{{ openCount(cl.key) || threadsFor(cl.key).length }}</span>
+                        }
+                      </button>
+                    </div>
                     <p class="mt-1.5 text-[15px] leading-relaxed whitespace-pre-line text-body">{{ cl.body }}</p>
+                    @if (openClauses().has(cl.key)) {
+                      <div class="mt-3 animate-rise border-l-2 border-[var(--accent)]/40 pl-4">
+                        <cms-discussion [contractId]="c.id" [clauseKey]="cl.key" [threads]="threadsFor(cl.key)" [highlight]="comment() ?? null" (changed)="refresh()" />
+                      </div>
+                    }
                   </article>
                 } @empty {
                   <p class="text-sm text-muted">{{ 'This contract is defined by its uploaded document.' | t }}</p>
                 }
+              </div>
+              <div class="card p-6" id="discussion">
+                <h2 class="font-semibold">{{ 'Discussion' | t }}</h2>
+                <p class="mb-4 text-sm text-muted">{{ 'Questions and remarks about the whole contract. To discuss a clause, use the button next to it.' | t }}</p>
+                <cms-discussion [contractId]="c.id" [threads]="generalThreads()" [highlight]="comment() ?? null" (changed)="refresh()" />
               </div>
             </section>
             <aside class="space-y-6">
@@ -246,14 +272,61 @@ export class ContractDetailPage {
 
   readonly id = input.required<string>();
   readonly tab = input<string>();
+  /** A thread to open and highlight (links from comment notifications). */
+  readonly comment = input<string>();
 
   protected readonly revision = signal(0);
   protected readonly busy = signal(false);
   protected readonly contract = resource({ params: () => this.id(), loader: ({ params }) => this.api.contract(params) });
+  protected readonly comments = resource({
+    params: () => ({ id: this.id(), r: this.revision(), lang: lang() }),
+    loader: ({ params }) => this.api.comments(params.id),
+  });
+  protected readonly openClauses = signal(new Set<string>());
+
+  private readonly byClause = computed(() => {
+    const map = new Map<string, CommentThread[]>();
+    for (const th of this.comments.value() ?? []) if (th.clause) map.set(th.clause.key, [...(map.get(th.clause.key) ?? []), th]);
+    return map;
+  });
+  /** Contract-wide threads, plus those on clauses the current version no longer has. */
+  protected readonly generalThreads = computed(() => {
+    const keys = new Set(this.contract.value()?.currentVersion.clauses.map((cl) => cl.key) ?? []);
+    return (this.comments.value() ?? []).filter((th) => !th.clause || !keys.has(th.clause.key));
+  });
+  protected threadsFor(key: string) {
+    return this.byClause().get(key) ?? [];
+  }
+  protected openCount(key: string) {
+    return this.threadsFor(key).filter((th) => !th.resolvedAt).length;
+  }
+  protected toggleClause(key: string) {
+    this.openClauses.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  }
+  private readonly injector = inject(Injector);
 
   constructor() {
     // Someone else approved, signed or edited it: refresh in place.
     inject(LiveService).onContractChange(() => this.refresh(), this.id);
+    // Opened from a comment notification: unfold its clause and scroll to the thread.
+    let handled: string | undefined;
+    effect(() => {
+      const id = this.comment();
+      const contract = this.contract.value();
+      const th = this.comments.value()?.find((x) => x.id === id);
+      if (!th || !contract || handled === id) return;
+      handled = id; // once per link, so the user can fold it again
+      untracked(() => {
+        if (th.clause && contract.currentVersion.clauses.some((cl) => cl.key === th.clause!.key)) {
+          this.openClauses.update((set) => new Set(set).add(th.clause!.key));
+        }
+        afterNextRender(() => document.getElementById(`comment-${th.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), { injector: this.injector });
+      });
+    });
   }
   protected readonly tabIndex = linkedSignal(() => Math.max(0, TABS.indexOf((this.tab() ?? 'overview') as (typeof TABS)[number])));
   protected readonly milestones = MILESTONES;

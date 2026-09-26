@@ -151,6 +151,9 @@ export class SettingsPage {
     { type: 'SIGNATURE_REQUESTED', label: 'A contract is waiting for my signature', icon: 'draw' },
     { type: 'CONTRACT_SIGNED', label: 'A contract is signed', icon: 'handshake' },
     { type: 'CONTRACT_EXPIRING', label: 'Renewal reminders and end of term', icon: 'event_upcoming' },
+    { type: 'COMMENT_ADDED', label: 'Someone comments on my contract', icon: 'add_comment' },
+    { type: 'COMMENT_REPLY', label: 'Someone replies in a discussion I’m in', icon: 'forum' },
+    { type: 'COMMENT_MENTION', label: 'Someone mentions me', icon: 'alternate_email' },
   ];
 
   protected setChannel(type: string, channel: 'email' | 'inApp', on: boolean) {

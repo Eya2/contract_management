@@ -92,6 +92,11 @@ export const FR: Record<string, string> = {
   'Its renewal {ref} is not signed yet.': 'Son renouvellement {ref} n’est pas encore signé.',
   'It ended without renewal. You can still start one.': 'Il s’est terminé sans renouvellement. Vous pouvez encore en lancer un.',
 
+  '{who} commented on "{clause}" in {ref} {title}': '{who} a commenté « {clause} » dans {ref} {title}',
+  '{who} commented on {ref} {title}': '{who} a commenté {ref} {title}',
+  '{who} replied on {ref} {title}': '{who} a répondu sur {ref} {title}',
+  '{who} mentioned you on {ref} {title}': '{who} vous a mentionné sur {ref} {title}',
+
   // --- Emails -----------------------------------------------------------------------------
   'Open in Contract Hub: {url}': 'Ouvrir dans Contract Hub : {url}',
   'Please sign: {title}': 'Signature demandée : {title}',

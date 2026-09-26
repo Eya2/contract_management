@@ -50,6 +50,7 @@ tamper-proof audit trail.
 - **A real contract PDF**, generated from each version, with parties, key terms, numbered clauses, signature blocks and page numbering. It comes in **English or French**, with a *DRAFT* watermark until approval. [Sample signed PDF](docs/samples/signed-contract-en.pdf) · [Version française](docs/samples/signed-contract-fr.pdf)
 - **In-app preview at every step** (draft, review, approval, signing, signed) without downloading anything.
 - **Attachments**, search, filters, sorting, pagination, **CSV export**, and termination with a reason.
+- **Comments on clauses**: threads on any clause or on the whole contract, with replies, **@mentions** (only people who can see the contract are offered), editing, and resolving. A thread follows its clause into later versions and is flagged when the clause has changed since.
 
 ### Approval workflow
 
@@ -296,6 +297,7 @@ except authentication and the external signing links.
 | Approvers | `GET /approvals/pending` · `POST /approvals/steps/:stepId/approve` · `POST /approvals/steps/:stepId/reject` |
 | Signatures | `GET/PUT /contracts/:id/signers` · `POST /contracts/:id/sign` · `POST /contracts/:id/decline-signature` · `GET /signers` |
 | External signing | `GET /signing/:token` · `GET /signing/:token/pdf` · `POST /signing/:token/sign` · `POST /signing/:token/decline` |
+| Comments | `GET/POST /contracts/:id/comments` · `GET /contracts/:id/comment-participants` · `PATCH/DELETE /comments/:id` · `POST /comments/:id/resolve` · `POST /comments/:id/reopen` |
 | Notifications | `GET /notifications` · `GET /notifications/unread-count` · `POST /notifications/:id/read` · `POST /notifications/read-all` · `GET/PUT /notifications/preferences` |
 | Live | `GET /events` (Server-Sent Events: `notification`, `contract`) |
 | Renewals | `GET /renewals/calendar?from=&to=` |
@@ -318,7 +320,7 @@ pull request. It typechecks and tests the API against a real PostgreSQL
 database, tests and builds the web app (the build fails if the bundle budget is
 exceeded), and builds both Docker images, publishing them from `main`.
 
-The API has 200 tests. Unit tests cover the workflow engine,
+The API has 206 tests. Unit tests cover the workflow engine,
 conditions, content hashing and diffs, renewal date arithmetic and permissions.
 Integration tests run against a real PostgreSQL database (`TEST_DATABASE_URL`)
 and cover contracts, uploads, the approval workflow, escalation, signing,
