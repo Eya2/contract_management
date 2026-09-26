@@ -1,7 +1,8 @@
 /**
  * Demo data. Idempotent: safe to run repeatedly (upserts by unique keys).
  *
- * Every demo account uses the password below. Demo contracts are created
+ * Every demo account gets the password in SEED_PASSWORD (kept out of the code,
+ * set it in apps/api/.env). Existing accounts keep theirs. Demo contracts are created
  * through ContractService (not raw inserts), so they get real versions, content
  * hashes, a timeline and audit entries, exactly like contracts made in the app.
  */
@@ -19,7 +20,11 @@ import { escalationService } from '../src/modules/workflow/escalation.service.js
 import { seedPortfolio } from './seed-portfolio.js';
 import { approvalService } from '../src/modules/workflow/approval.service.js';
 
-export const DEMO_PASSWORD = 'Demo1234!';
+const DEMO_PASSWORD = process.env.SEED_PASSWORD ?? '';
+if (DEMO_PASSWORD.length < 8) {
+  console.error('Set SEED_PASSWORD (at least 8 characters) in apps/api/.env: every demo account gets this password.');
+  process.exit(1);
+}
 
 const departments = [
   { code: 'LEG', name: 'Legal' },
@@ -85,7 +90,7 @@ async function main() {
   console.log(`Schedulers: ${renewals.expired} expired, ${renewals.autoRenewed} renewed automatically, ${renewals.reminded} reminders, ${escalated} escalations`);
 
   console.log(
-    `Seeded ${departments.length} departments, ${users.length} users (password: ${DEMO_PASSWORD}), ` +
+    `Seeded ${departments.length} departments, ${users.length} users (password from SEED_PASSWORD), ` +
       `${workflowTemplates.length} approval policies, ${created} new demo contracts`,
   );
 }

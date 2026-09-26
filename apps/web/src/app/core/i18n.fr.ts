@@ -159,7 +159,6 @@ export const FR: Record<string, string> = {
   'Forgot password?': 'Mot de passe oublié ?',
   'Sign in': 'Se connecter',
   'Try a demo account': 'Essayer un compte de démonstration',
-  'Demo password: Demo1234!': 'Mot de passe de démonstration : Demo1234!',
   'Employee · Sales': 'Collaborateur · Ventes',
   'Manager · Sales': 'Manager · Ventes',
   Legal: 'Juridique',

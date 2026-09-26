@@ -6,6 +6,7 @@
 #
 # The app profile needs JWT_ACCESS_SECRET, e.g. in a `.env` file next to this one:
 #   echo "JWT_ACCESS_SECRET=$(openssl rand -base64 48)" > .env
+# and the seed profile needs SEED_PASSWORD (the demo accounts' password) there too.
 #
 #   postgres – primary database
 #   mailpit  – SMTP catcher: every email the app sends shows up at http://localhost:8025
@@ -80,7 +81,9 @@ services:
       target: build
     working_dir: /app/apps/api
     command: ["npx", "tsx", "prisma/seed.ts"]
-    environment: *api-env
+    environment:
+      <<: *api-env
+      SEED_PASSWORD: ${SEED_PASSWORD:?Set SEED_PASSWORD (the demo accounts' password) in .env}
     depends_on:
       api:
         condition: service_healthy

@@ -16,7 +16,7 @@
     "db:seed": "npm run db:seed -w @cms/api",
     "test": "npm run build:shared && npm test --workspaces --if-present",
     "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node --env-file-if-exists=apps/api/.env scripts/screenshots.mjs"
   },
   "engines": {
     "node": ">=22"

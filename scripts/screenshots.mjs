@@ -12,7 +12,9 @@ import { chromium } from 'playwright-core';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4200';
 const OUT = new URL('../docs/screenshots/', import.meta.url).pathname;
-const PASSWORD = 'Demo1234!';
+// The demo accounts' password (SEED_PASSWORD in apps/api/.env).
+const PASSWORD = process.env.SEED_PASSWORD;
+if (!PASSWORD) throw new Error('Set SEED_PASSWORD to the demo accounts’ password');
 
 await mkdir(OUT, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });

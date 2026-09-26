@@ -118,7 +118,7 @@ Prerequisites: **Node 22 or 24**, and either **Docker** or a local **PostgreSQL 
 
 ```bash
 npm install
-cp apps/api/.env.example apps/api/.env   # adjust DATABASE_URL if you use a local Postgres
+cp apps/api/.env.example apps/api/.env   # set SEED_PASSWORD; adjust DATABASE_URL for a local Postgres
 npm run db:up                            # Postgres + Mailpit in Docker (skip Postgres if you have one)
 npm run db:migrate                       # create the schema
 npm run db:seed                          # demo users, policies and contracts at every stage
@@ -135,6 +135,7 @@ Compose. No Node.js needed.
 
 ```bash
 echo "JWT_ACCESS_SECRET=$(openssl rand -base64 48)" > .env   # once; .env is git-ignored
+echo "SEED_PASSWORD=choose-a-demo-password" >> .env           # the demo accounts' password
 docker compose --profile app up -d --build                   # http://localhost:8080
 docker compose --profile app run --rm seed                   # load the demo data (once)
 ```
@@ -156,8 +157,9 @@ The images are built by CI and published on every push to `main`:
 ### Demo accounts
 
 The seed creates one or more people for every role and department (employee,
-manager, Legal, Finance, admin), named as in the walkthrough below. Their
-sign-in details are shared separately, not published here.
+manager, Legal, Finance, admin), named as in the walkthrough below. They all
+get the password you set in `SEED_PASSWORD`; the addresses are in
+`apps/api/prisma/seed.ts`.
 
 ---
 
