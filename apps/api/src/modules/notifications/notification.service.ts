@@ -1,12 +1,14 @@
 import type { NotificationType } from '../../generated/prisma/enums.js';
+import { asJson, localeOf, render, type Msg } from '../../lib/i18n.js';
 import { publish } from '../../lib/live.js';
 import type { DbClient } from '../../lib/prisma.js';
 import { wants } from './preferences.js';
 
 export interface NotificationMessage {
   type: NotificationType;
-  title: string;
-  body: string;
+  /** Plain text, or a message rendered in each reader's language. */
+  title: string | Msg;
+  body: string | Msg;
   contractId?: string;
   /** Front-end route, e.g. /contracts/<id>?tab=approvals */
   link?: string;
@@ -31,7 +33,7 @@ export async function notify(tx: DbClient, userIds: Iterable<string>, message: N
 
   const users = await tx.user.findMany({
     where: { id: { in: recipients }, isActive: true },
-    select: { id: true, email: true, notificationPrefs: true },
+    select: { id: true, email: true, notificationPrefs: true, locale: true },
   });
   // Each user chooses the channels per notification type (Account settings).
   const inApp = users.filter((u) => wants(u.notificationPrefs, message.type, 'inApp'));
@@ -42,8 +44,10 @@ export async function notify(tx: DbClient, userIds: Iterable<string>, message: N
       data: inApp.map((u) => ({
         userId: u.id,
         type: message.type,
-        title: message.title,
-        body: message.body,
+        title: render(message.title, 'en'),
+        body: render(message.body, 'en'),
+        titleMsg: typeof message.title === 'object' ? asJson(message.title) : undefined,
+        bodyMsg: typeof message.body === 'object' ? asJson(message.body) : undefined,
         link: message.link,
         contractId: message.contractId,
         dedupeKey: message.dedupeKey ? `${message.dedupeKey}:${u.id}` : null,
@@ -56,7 +60,13 @@ export async function notify(tx: DbClient, userIds: Iterable<string>, message: N
     await tx.job.createMany({
       data: byEmail.map((u) => ({
         type: 'email.send',
-        payload: { to: u.email, subject: message.title, text: message.body, link: message.link ?? null },
+        payload: {
+          to: u.email,
+          subject: render(message.title, localeOf(u)),
+          text: render(message.body, localeOf(u)),
+          link: message.link ?? null,
+          locale: localeOf(u),
+        },
         dedupeKey: message.dedupeKey ? `${message.dedupeKey}:${u.id}` : null,
       })),
       skipDuplicates: true,

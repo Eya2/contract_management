@@ -23,7 +23,8 @@ function present(t: TemplateWithSteps) {
     ...t,
     steps: t.steps.map((s) => ({
       ...s,
-      conditionText: s.condition ? describeCondition(s.condition as unknown as Condition) : null,
+      conditionText: null,
+      conditionTextMsg: s.condition ? describeCondition(s.condition as unknown as Condition) : null,
     })),
   };
 }

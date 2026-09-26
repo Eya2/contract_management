@@ -20,7 +20,14 @@ describe('daily summary', () => {
     expect(text).toContain('Hello Leila,');
     expect(text).toContain('- 2 approvals waiting for you');
     expect(text).toContain('- 1 contract to sign');
-    expect(text).toContain('- CTR-2026-00005 Globex support, ends 2026-10-01');
+    expect(text).toContain('- CTR-2026-00005 Globex support, ends 1 Oct 2026');
     expect(text).not.toContain('to revise');
+  });
+
+  it('writes the summary in the recipient\'s language', () => {
+    const { subject, text } = digestEmail({ ...empty, pendingApprovals: 1 }, 'fr');
+    expect(subject).toBe('Votre récapitulatif Contract Hub : 1 élément à traiter');
+    expect(text).toContain('Bonjour Leila,');
+    expect(text).toContain('- 1 approbation vous attend');
   });
 });

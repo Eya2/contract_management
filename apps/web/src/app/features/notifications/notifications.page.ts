@@ -1,9 +1,10 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { TPipe, locale, t } from '../../core/i18n';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { TPipe, locale, t, lang } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { Api } from '../../core/api.service';
+import { LiveService } from '../../core/live.service';
 import { CountsService } from '../../core/counts.service';
 import type { AppNotification } from '../../core/models';
 import { EmptyState } from '../../shared/empty-state';
@@ -71,7 +72,7 @@ const ICONS: Record<string, string> = {
     </div>
   `,
 })
-export class NotificationsPage implements OnInit {
+export class NotificationsPage {
   private readonly api = inject(Api);
   private readonly router = inject(Router);
   protected readonly counts = inject(CountsService);
@@ -95,8 +96,13 @@ export class NotificationsPage implements OnInit {
     return [...map].map(([label, items]) => ({ label, items }));
   });
 
-  ngOnInit() {
-    void this.load();
+  constructor() {
+    // Loads now, again when the language changes (titles come from the server), and on new notifications.
+    effect(() => {
+      lang();
+      untracked(() => void this.load());
+    });
+    inject(LiveService).on((m) => m.type === 'notification' && void this.load());
   }
 
   protected async load(more = false) {

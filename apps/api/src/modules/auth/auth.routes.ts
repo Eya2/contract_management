@@ -4,6 +4,8 @@ import { env } from '../../config/env.js';
 import { authenticate } from '../../common/middleware/authenticate.js';
 import { z } from 'zod';
 import { currentUser } from '../../common/middleware/authenticate.js';
+import { LOCALES } from '../../lib/i18n.js';
+import { prisma } from '../../lib/prisma.js';
 import { accountService } from './account.service.js';
 import { authController } from './auth.controller.js';
 import { readRefreshCookie } from './auth.cookies.js';
@@ -55,6 +57,13 @@ authRouter.post('/reset-password', loginLimiter, async (req, res) => {
 authRouter.post('/change-password', authenticate, async (req, res) => {
   const { currentPassword, newPassword } = z.object({ currentPassword: z.string().min(1).max(200), newPassword: NewPassword }).parse(req.body);
   await accountService.changePassword(currentUser(req), currentPassword, newPassword, readRefreshCookie(req));
+  res.status(204).end();
+});
+
+/** The language the server writes to this user in (emails). Kept in step with the app's language switch. */
+authRouter.put('/me/locale', authenticate, async (req, res) => {
+  const { locale } = z.object({ locale: z.enum(LOCALES) }).parse(req.body);
+  await prisma.user.update({ where: { id: currentUser(req).id }, data: { locale } });
   res.status(204).end();
 });
 

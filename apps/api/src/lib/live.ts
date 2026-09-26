@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import pg from 'pg';
 import { env } from '../config/env.js';
+import { render, type Msg } from './i18n.js';
 import { logger } from './logger.js';
 import { prisma, type DbClient } from './prisma.js';
 
@@ -16,7 +17,7 @@ import { prisma, type DbClient } from './prisma.js';
  * API. The one exception is a notification, which goes only to its recipients.
  */
 export type LiveEvent =
-  | { kind: 'notification'; userIds: string[]; title: string }
+  | { kind: 'notification'; userIds: string[]; title: string | Msg }
   | { kind: 'contract'; contractId: string };
 
 const CHANNEL = 'cms_live';
@@ -29,7 +30,7 @@ liveBus.setMaxListeners(0);
 export async function publish(db: DbClient, event: LiveEvent): Promise<void> {
   let payload = JSON.stringify(event);
   if (payload.length > MAX_PAYLOAD && event.kind === 'notification') {
-    payload = JSON.stringify({ ...event, title: event.title.slice(0, 200) });
+    payload = JSON.stringify({ ...event, title: render(event.title, 'en').slice(0, 200) });
   }
   if (payload.length > MAX_PAYLOAD) return; // too many recipients: they'll catch up on the next poll
   await db.$executeRaw`SELECT pg_notify(${CHANNEL}, ${payload})`;

@@ -1,5 +1,5 @@
 import { Component, computed, inject, resource } from '@angular/core';
-import { TPipe } from '../../core/i18n';
+import { TPipe, lang } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
@@ -75,7 +75,7 @@ import { Skeleton } from '../../shared/skeleton';
 })
 export class PoliciesPage {
   private readonly api = inject(Api);
-  protected readonly policies = resource({ loader: () => this.api.policies() });
+  protected readonly policies = resource({ params: () => ({ lang: lang() }), loader: () => this.api.policies() });
   protected readonly humanize = humanize;
   protected readonly sorted = computed(() => [...(this.policies.value() ?? [])].sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.name.localeCompare(b.name)));
 

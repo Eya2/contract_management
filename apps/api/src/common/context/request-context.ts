@@ -14,6 +14,8 @@ export interface RequestContext {
   ip?: string;
   userAgent?: string;
   user?: AuthUser;
+  /** Language for text in the response, from Accept-Language. */
+  locale?: 'en' | 'fr';
 }
 
 const storage = new AsyncLocalStorage<RequestContext>();
@@ -31,7 +33,12 @@ export const requestContextMiddleware: RequestHandler = (req, res, next) => {
   const requestId = (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
   res.setHeader('x-request-id', requestId);
   storage.run(
-    { requestId, ip: req.ip, userAgent: req.get('user-agent') ?? undefined },
+    {
+      requestId,
+      ip: req.ip,
+      userAgent: req.get('user-agent') ?? undefined,
+      locale: req.get('accept-language')?.trim().toLowerCase().startsWith('fr') ? 'fr' : 'en',
+    },
     () => next(),
   );
 };

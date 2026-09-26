@@ -1,3 +1,4 @@
+import { render } from '../../lib/i18n.js';
 import { describe, expect, it } from 'vitest';
 import {
   ConditionSchema,
@@ -21,7 +22,7 @@ const overTenK: Condition = { field: 'value', op: 'gt', value: 10000 };
 
 describe('evaluateCondition', () => {
   it('explains a skipped step in plain words', () => {
-    expect(evaluateCondition(overTenK, facts())).toEqual({
+    expect(evaluateCondition(overTenK, facts())).toMatchObject({
       applies: false,
       reason: 'value 8,000.00 USD is not > 10,000',
     });
@@ -90,10 +91,15 @@ describe('ConditionSchema', () => {
 
 describe('describeCondition', () => {
   it('renders a readable rule', () => {
-    expect(describeCondition(overTenK)).toBe('value > 10,000');
-    expect(
-      describeCondition({ all: [overTenK, { not: { field: 'type', op: 'in', value: ['NDA', 'EMPLOYMENT'] } }] }),
-    ).toBe('value > 10,000 AND (NOT type one of NDA, EMPLOYMENT)');
+    expect(render(describeCondition(overTenK), 'en')).toBe('value > 10,000');
+    const rule = describeCondition({ all: [overTenK, { not: { field: 'type', op: 'in', value: ['NDA', 'EMPLOYMENT'] } }] });
+    expect(render(rule, 'en')).toBe('value > 10,000 AND (NOT type one of NDA, EMPLOYMENT)');
+  });
+
+  it('speaks French too', () => {
+    expect(render(evaluateCondition(overTenK, facts()).reasonMsg, 'fr')).toBe('valeur 8\u202f000,00 USD n’est pas > 10\u202f000');
+    const rule = describeCondition({ all: [overTenK, { not: { field: 'type', op: 'in', value: ['NDA', 'EMPLOYMENT'] } }] });
+    expect(render(rule, 'fr')).toBe('valeur > 10\u202f000 ET (NON type parmi Confidentialité (NDA), Travail)');
   });
 });
 

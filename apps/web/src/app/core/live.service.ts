@@ -1,5 +1,6 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { AuthService } from './auth.service';
+import { lang } from './i18n';
 
 export type LiveMessage = { type: 'notification'; title: string } | { type: 'contract'; contractId: string };
 
@@ -63,7 +64,9 @@ export class LiveService {
     while (!signal.aborted) {
       try {
         const token = this.auth.accessToken();
-        const res = await fetch('/api/events', { headers: token ? { Authorization: `Bearer ${token}` } : {}, signal, cache: 'no-store' });
+        const headers: Record<string, string> = { 'Accept-Language': lang() };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/events', { headers, signal, cache: 'no-store' });
         if (res.status === 401) {
           if (!(await this.auth.refresh())) return this.stop();
           continue;

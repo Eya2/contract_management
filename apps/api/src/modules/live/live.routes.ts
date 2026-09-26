@@ -1,5 +1,6 @@
 import { Router, type Response } from 'express';
 import { authenticate, currentUser } from '../../common/middleware/authenticate.js';
+import { render, requestLocale } from '../../lib/i18n.js';
 import { liveBus, type LiveEvent } from '../../lib/live.js';
 import { prisma } from '../../lib/prisma.js';
 import { contractVisibilityFilter } from '../contracts/contract-access.js';
@@ -29,6 +30,7 @@ export function closeLiveStreams() {
 
 liveRouter.get('/', authenticate, (req, res) => {
   const user = currentUser(req);
+  const locale = requestLocale();
   res.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache, no-transform',
@@ -43,7 +45,7 @@ liveRouter.get('/', authenticate, (req, res) => {
 
   const onEvent = (e: LiveEvent) => {
     if (e.kind === 'notification') {
-      if (e.userIds.includes(user.id)) send('notification', { title: e.title });
+      if (e.userIds.includes(user.id)) send('notification', { title: render(e.title, locale) });
       return;
     }
     if (user.role === 'ADMIN') {

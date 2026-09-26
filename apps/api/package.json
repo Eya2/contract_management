@@ -14,6 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:backfill-messages": "tsx --env-file-if-exists=.env prisma/backfill-messages.ts",
     "db:studio": "prisma studio"
   },
   "devDependencies": {

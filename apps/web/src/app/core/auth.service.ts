@@ -1,7 +1,8 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { lang } from './i18n';
 import type { Profile } from './models';
 
 /** Attempts (1 s, 2 s, 3 s … apart) while the server can't be reached. */
@@ -28,6 +29,19 @@ export class AuthService {
 
   /** A refresh in flight, shared so concurrent 401s trigger only one refresh. */
   private refreshing: Promise<boolean> | null = null;
+
+  constructor() {
+    // The server writes emails in the user's language: keep it in step with the switch.
+    effect(() => {
+      const l = lang();
+      const user = this.user();
+      if (!user || user.locale === l) return;
+      untracked(() => {
+        this.user.set({ ...user, locale: l });
+        firstValueFrom(this.http.put('/api/auth/me/locale', { locale: l })).catch(() => undefined);
+      });
+    });
+  }
 
   accessToken(): string | null {
     return this.token();

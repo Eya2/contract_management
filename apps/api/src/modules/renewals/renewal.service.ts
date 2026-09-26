@@ -1,3 +1,4 @@
+import { dateParam, msg } from '../../lib/i18n.js';
 import type { AuthUser } from '../../common/auth/auth-user.js';
 import { ConflictError, ForbiddenError } from '../../common/errors/app-error.js';
 import type { Contract, ContractStatus } from '../../generated/prisma/client.js';
@@ -53,12 +54,16 @@ export const renewalService = {
           if (inApp + emails > 0) return false;
           const reached = await notify(tx, [c.ownerId, ...(c.department.headId ? [c.department.headId] : [])], {
             type: 'CONTRACT_EXPIRING',
-            title: `${c.referenceNumber} ${c.title} ${daysLeft === 0 ? 'ends today' : daysLeft === 1 ? 'ends tomorrow' : `ends in ${daysLeft} days`}`,
+            title: msg(daysLeft === 0 ? '{ref} {title} ends today' : daysLeft === 1 ? '{ref} {title} ends tomorrow' : '{ref} {title} ends in {n} days', {
+              ref: c.referenceNumber,
+              title: c.title,
+              n: daysLeft,
+            }),
             body: c.autoRenew
-              ? `It renews automatically on ${nextTerm(c).startDate.toISOString().slice(0, 10)} unless you act before then.`
+              ? msg('It renews automatically on {date} unless you act before then.', { date: dateParam(nextTerm(c).startDate) })
               : c.renewedBy
-                ? 'A renewal is in progress but not signed yet.'
-                : 'It does not renew automatically. Start a renewal if it should continue.',
+                ? msg('A renewal is in progress but not signed yet.')
+                : msg('It does not renew automatically. Start a renewal if it should continue.'),
             contractId: c.id,
             link: contractLink(c.id),
             dedupeKey: `expiry:${c.id}:${threshold}d`,
@@ -115,7 +120,7 @@ async function endTerm(id: string, now: Date): Promise<'expired' | 'renewed' | '
     const renewal = await tx.contract.findUnique({ where: { renewalOfId: id } });
 
     if (renewal && RENEWAL_IN_FORCE.includes(renewal.status)) {
-      await transitionContract(tx, { contractId: id, from: 'ACTIVE', to: 'RENEWED', actorId: null, reason: `Continued by ${renewal.referenceNumber}` });
+      await transitionContract(tx, { contractId: id, from: 'ACTIVE', to: 'RENEWED', actorId: null, reason: msg('Continued by {ref}', { ref: renewal.referenceNumber }) });
       await recordAudit({ action: 'CONTRACT_RENEWED', entityType: 'contract', entityId: id, contractId: id, userId: null, metadata: { renewal: renewal.referenceNumber } }, tx);
       return 'renewed';
     }
@@ -123,15 +128,19 @@ async function endTerm(id: string, now: Date): Promise<'expired' | 'renewed' | '
     if (c.autoRenew && !renewal) {
       const successorId = await createSuccessor(tx, c, { status: 'ACTIVE', actorId: null, now });
       const successor = await tx.contract.findUniqueOrThrow({ where: { id: successorId } });
-      await transitionContract(tx, { contractId: id, from: 'ACTIVE', to: 'RENEWED', actorId: null, reason: `Renewed automatically as ${successor.referenceNumber}` });
+      await transitionContract(tx, { contractId: id, from: 'ACTIVE', to: 'RENEWED', actorId: null, reason: msg('Renewed automatically as {ref}', { ref: successor.referenceNumber }) });
       await recordAudit(
         { action: 'CONTRACT_RENEWED', entityType: 'contract', entityId: id, contractId: id, userId: null, metadata: { renewal: successor.referenceNumber, automatic: true } },
         tx,
       );
       await notify(tx, [c.ownerId], {
         type: 'CONTRACT_EXPIRING',
-        title: `${c.referenceNumber} ${c.title} renewed automatically`,
-        body: `A new term runs from ${successor.startDate?.toISOString().slice(0, 10)} to ${successor.endDate?.toISOString().slice(0, 10)} as ${successor.referenceNumber}, on the same terms.`,
+        title: msg('{ref} {title} renewed automatically', { ref: c.referenceNumber, title: c.title }),
+        body: msg('A new term runs from {from} to {to} as {ref}, on the same terms.', {
+          from: dateParam(successor.startDate!),
+          to: dateParam(successor.endDate!),
+          ref: successor.referenceNumber,
+        }),
         contractId: successorId,
         link: contractLink(successorId),
         dedupeKey: `auto-renewed:${id}`,
@@ -141,12 +150,12 @@ async function endTerm(id: string, now: Date): Promise<'expired' | 'renewed' | '
 
     // A renewal still in draft/review doesn't keep the old contract alive; when
     // it's signed later, signing marks this one RENEWED (EXPIRED → RENEWED).
-    await transitionContract(tx, { contractId: id, from: 'ACTIVE', to: 'EXPIRED', actorId: null, reason: 'End date reached' });
+    await transitionContract(tx, { contractId: id, from: 'ACTIVE', to: 'EXPIRED', actorId: null, reason: msg('End date reached') });
     await recordAudit({ action: 'CONTRACT_EXPIRED', entityType: 'contract', entityId: id, contractId: id, userId: null }, tx);
     await notify(tx, [c.ownerId], {
       type: 'CONTRACT_EXPIRING',
-      title: `${c.referenceNumber} ${c.title} has expired`,
-      body: renewal ? `Its renewal ${renewal.referenceNumber} is not signed yet.` : 'It ended without renewal. You can still start one.',
+      title: msg('{ref} {title} has expired', { ref: c.referenceNumber, title: c.title }),
+      body: renewal ? msg('Its renewal {ref} is not signed yet.', { ref: renewal.referenceNumber }) : msg('It ended without renewal. You can still start one.'),
       contractId: id,
       link: contractLink(id),
       dedupeKey: `expired:${id}`,
@@ -229,7 +238,7 @@ export async function settlePredecessor(tx: DbClient, contract: Contract, actorI
   if (!contract.renewalOfId) return;
   const previous = await tx.contract.findUnique({ where: { id: contract.renewalOfId } });
   if (previous?.status !== 'EXPIRED') return;
-  await transitionContract(tx, { contractId: previous.id, from: 'EXPIRED', to: 'RENEWED', actorId, reason: `Renewed by ${contract.referenceNumber}` });
+  await transitionContract(tx, { contractId: previous.id, from: 'EXPIRED', to: 'RENEWED', actorId, reason: msg('Renewed by {ref}', { ref: contract.referenceNumber }) });
   await recordAudit({ action: 'CONTRACT_RENEWED', entityType: 'contract', entityId: previous.id, contractId: previous.id, userId: actorId, metadata: { renewal: contract.referenceNumber } }, tx);
 }
 

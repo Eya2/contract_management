@@ -6,6 +6,7 @@ import { pinoHttp } from 'pino-http';
 import { env } from './config/env.js';
 import { requestContextMiddleware } from './common/context/request-context.js';
 import { errorHandler, notFoundHandler } from './common/middleware/error-handler.js';
+import { localizeResponses } from './lib/i18n.js';
 import { logger } from './lib/logger.js';
 import { jobsRouter } from './modules/admin/jobs.routes.js';
 import { auditRouter, contractAuditRouter } from './modules/audit/audit.routes.js';
@@ -43,6 +44,7 @@ export function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
   app.use(requestContextMiddleware);
+  app.use(localizeResponses);
   app.use(
     pinoHttp({
       logger,

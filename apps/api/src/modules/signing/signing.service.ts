@@ -1,3 +1,4 @@
+import { dateParam, localeOf, msg, render } from '../../lib/i18n.js';
 import { randomBytes } from 'node:crypto';
 import type { AuthUser } from '../../common/auth/auth-user.js';
 import { hasPermission, Permission } from '../../common/auth/permissions.js';
@@ -235,7 +236,7 @@ export const signingService = {
     for (const { id } of due) {
       try {
         await prisma.$transaction(async (tx) => {
-          await transitionContract(tx, { contractId: id, from: 'SIGNED', to: 'ACTIVE', actorId: null, reason: 'Start date reached', data: { activatedAt: now } });
+          await transitionContract(tx, { contractId: id, from: 'SIGNED', to: 'ACTIVE', actorId: null, reason: msg('Start date reached'), data: { activatedAt: now } });
           await recordAudit({ action: 'CONTRACT_ACTIVATED', entityType: 'contract', entityId: id, contractId: id, userId: null }, tx);
         });
         activated++;
@@ -348,7 +349,7 @@ async function sign(signer: ContractSigner, body: SignBody, actorUserId: string 
           from: 'APPROVED',
           to: startsLater ? 'SIGNED' : 'ACTIVE',
           actorId: actorUserId,
-          reason: 'All parties signed',
+          reason: msg('All parties signed'),
           data: startsLater ? undefined : { activatedAt: now },
         });
         await settlePredecessor(tx, contract, actorUserId);
@@ -357,8 +358,10 @@ async function sign(signer: ContractSigner, body: SignBody, actorUserId: string 
         }
         await notify(tx, [contract.ownerId], {
           type: 'CONTRACT_SIGNED',
-          title: `${contract.referenceNumber} ${contract.title} is fully signed`,
-          body: startsLater ? `All parties signed. It becomes active on ${contract.startDate!.toISOString().slice(0, 10)}.` : 'All parties signed. The contract is now active.',
+          title: msg('{ref} {title} is fully signed', { ref: contract.referenceNumber, title: contract.title }),
+          body: startsLater
+            ? msg('All parties signed. It becomes active on {date}.', { date: dateParam(contract.startDate!) })
+            : msg('All parties signed. The contract is now active.'),
           contractId: contract.id,
           link: contractLink(contract.id, 'signatures'),
         });
@@ -383,7 +386,7 @@ async function decline(signer: ContractSigner, reason: string, actorUserId: stri
       from: 'APPROVED',
       to: 'DRAFT',
       actorId: actorUserId,
-      reason: `Signature declined by ${signer.name}: ${reason}`,
+      reason: msg('Signature declined by {name}: {reason}', { name: signer.name, reason }),
     });
     await recordAudit(
       { action: 'CONTRACT_REOPENED', entityType: 'signer', entityId: signer.id, contractId: contract.id, userId: actorUserId, metadata: { declinedBy: signer.email, reason } },
@@ -391,8 +394,8 @@ async function decline(signer: ContractSigner, reason: string, actorUserId: stri
     );
     await notify(tx, [contract.ownerId], {
       type: 'CONTRACT_REJECTED',
-      title: `${contract.referenceNumber} ${contract.title}: signature declined`,
-      body: `${signer.name} declined to sign: ${reason}. The contract is back in draft.`,
+      title: msg('{ref} {title}: signature declined', { ref: contract.referenceNumber, title: contract.title }),
+      body: msg('{name} declined to sign: {reason}. The contract is back in draft.', { name: signer.name, reason }),
       contractId: contract.id,
       link: contractLink(contract.id, 'signatures'),
     });
@@ -409,12 +412,15 @@ async function requestNextSignatures(tx: DbClient, contract: Contract, versionId
   const all = await tx.contractSigner.findMany({ where: { versionId } });
   const turn = currentTurn(all);
   if (turn === null) return;
+  // External signers have no account: they get the contract owner's language.
+  const owner = await tx.user.findUnique({ where: { id: contract.ownerId }, select: { locale: true } });
+  const locale = localeOf(owner ?? {});
   for (const s of all.filter((x) => x.status === 'PENDING' && x.signingOrder === turn)) {
     if (s.userId) {
       await notify(tx, [s.userId], {
         type: 'SIGNATURE_REQUESTED',
-        title: `Signature needed: ${contract.referenceNumber} ${contract.title}`,
-        body: 'The contract is approved and waiting for your signature.',
+        title: msg('Signature needed: {ref} {title}', { ref: contract.referenceNumber, title: contract.title }),
+        body: msg('The contract is approved and waiting for your signature.'),
         contractId: contract.id,
         link: contractLink(contract.id, 'signatures'),
         dedupeKey: `signature-requested:${s.id}`,
@@ -435,9 +441,18 @@ async function requestNextSignatures(tx: DbClient, contract: Contract, versionId
           type: 'email.send',
           payload: {
             to: s.email,
-            subject: `Please sign: ${contract.title}`,
-            text: `Hello ${s.name},\n\n${contract.title} (${contract.referenceNumber}) is ready for your signature. The link is personal and valid for ${LINK_TTL_DAYS} days.`,
+            subject: render(msg('Please sign: {title}', { title: contract.title }), locale),
+            text: render(
+              msg('Hello {name},\n\n{title} ({ref}) is ready for your signature. The link is personal and valid for {days} days.', {
+                name: s.name,
+                title: contract.title,
+                ref: contract.referenceNumber,
+                days: LINK_TTL_DAYS,
+              }),
+              locale,
+            ),
             link: `/sign/${token}`,
+            locale,
           },
           dedupeKey: `signature-link:${s.id}:${sha256Hex(token).slice(0, 16)}`,
         },

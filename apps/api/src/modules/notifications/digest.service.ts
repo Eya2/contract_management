@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js';
+import { dateParam, isMsg, localeOf, msg, render, type Locale, type Param } from '../../lib/i18n.js';
 import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import { actionableStepFilter } from '../contracts/contract-access.js';
@@ -21,26 +22,30 @@ export function isEmpty(s: DigestSummary): boolean {
   return !s.pendingApprovals && !s.awaitingSignature && !s.toRevise && !s.endingSoon.length && !s.notifications.length;
 }
 
-export function digestEmail(s: DigestSummary): { subject: string; text: string } {
-  const lines: string[] = [`Hello ${s.firstName},`, '', 'Here is your Contract Hub summary for today.', ''];
+export function digestEmail(s: DigestSummary, locale: Locale = 'en'): { subject: string; text: string } {
+  const tr = (t: string, p?: Record<string, Param>) => render(msg(t, p), locale);
+  const lines: string[] = [tr('Hello {name},', { name: s.firstName }), '', tr('Here is your Contract Hub summary for today.'), ''];
   const todo: string[] = [];
-  if (s.pendingApprovals) todo.push(`- ${s.pendingApprovals} approval${s.pendingApprovals > 1 ? 's' : ''} waiting for you`);
-  if (s.awaitingSignature) todo.push(`- ${s.awaitingSignature} contract${s.awaitingSignature > 1 ? 's' : ''} to sign`);
-  if (s.toRevise) todo.push(`- ${s.toRevise} rejected contract${s.toRevise > 1 ? 's' : ''} to revise`);
-  if (todo.length) lines.push('To do', ...todo, '');
+  const count = (n: number, one: string, many: string) => `- ${tr(n === 1 ? one : many, { n })}`;
+  if (s.pendingApprovals) todo.push(count(s.pendingApprovals, '{n} approval waiting for you', '{n} approvals waiting for you'));
+  if (s.awaitingSignature) todo.push(count(s.awaitingSignature, '{n} contract to sign', '{n} contracts to sign'));
+  if (s.toRevise) todo.push(count(s.toRevise, '{n} rejected contract to revise', '{n} rejected contracts to revise'));
+  if (todo.length) lines.push(tr('To do'), ...todo, '');
   if (s.endingSoon.length) {
-    lines.push(`Ending in the next ${ENDING_WINDOW_DAYS} days`);
-    for (const c of s.endingSoon) lines.push(`- ${c.referenceNumber} ${c.title}, ends ${c.endDate.toISOString().slice(0, 10)}`);
+    lines.push(tr('Ending in the next {n} days', { n: ENDING_WINDOW_DAYS }));
+    for (const c of s.endingSoon) lines.push(`- ${tr('{ref} {title}, ends {date}', { ref: c.referenceNumber, title: c.title, date: dateParam(c.endDate) })}`);
     lines.push('');
   }
   if (s.notifications.length) {
-    lines.push('In the last 24 hours');
+    lines.push(tr('In the last 24 hours'));
     for (const n of s.notifications) lines.push(`- ${n}`);
     lines.push('');
   }
-  lines.push('You receive this summary because it is on in your account settings.');
-  const count = s.pendingApprovals + s.awaitingSignature + s.toRevise;
-  const subject = count ? `Your Contract Hub summary: ${count} item${count > 1 ? 's' : ''} to do` : 'Your Contract Hub summary';
+  lines.push(tr('You receive this summary because it is on in your account settings.'));
+  const total = s.pendingApprovals + s.awaitingSignature + s.toRevise;
+  const subject = total
+    ? tr(total === 1 ? 'Your Contract Hub summary: {n} item to do' : 'Your Contract Hub summary: {n} items to do', { n: total })
+    : tr('Your Contract Hub summary');
   return { subject, text: lines.join('\n') };
 }
 
@@ -56,7 +61,7 @@ export const digestService = {
     const today = startOfUtcDay(now);
     const due = await prisma.user.findMany({
       where: { isActive: true, dailyDigest: true, OR: [{ lastDigestOn: null }, { lastDigestOn: { lt: today } }] },
-      select: { id: true, email: true, firstName: true, role: true, departmentId: true, headOf: { select: { id: true } } },
+      select: { id: true, email: true, firstName: true, locale: true, role: true, departmentId: true, headOf: { select: { id: true } } },
       take: 200,
     });
 
@@ -73,9 +78,9 @@ export const digestService = {
           result.skipped++;
           continue;
         }
-        const { subject, text } = digestEmail(summary);
+        const { subject, text } = digestEmail(summary, localeOf(u));
         await prisma.job.createMany({
-          data: [{ type: 'email.send', payload: { to: u.email, subject, text, link: '/' }, dedupeKey: `digest:${u.id}:${today.toISOString().slice(0, 10)}` }],
+          data: [{ type: 'email.send', payload: { to: u.email, subject, text, link: '/', locale: localeOf(u) }, dedupeKey: `digest:${u.id}:${today.toISOString().slice(0, 10)}` }],
           skipDuplicates: true,
         });
         result.sent++;
@@ -88,7 +93,7 @@ export const digestService = {
 };
 
 async function summarize(
-  u: { id: string; email: string; firstName: string; role: Parameters<typeof actionableStepFilter>[0]['role']; departmentId: string; headOf: { id: string } | null },
+  u: { id: string; email: string; firstName: string; locale: string; role: Parameters<typeof actionableStepFilter>[0]['role']; departmentId: string; headOf: { id: string } | null },
   now: Date,
 ): Promise<DigestSummary> {
   const today = startOfUtcDay(now);
@@ -109,7 +114,7 @@ async function summarize(
     }),
     prisma.notification.findMany({
       where: { userId: u.id, createdAt: { gte: new Date(now.getTime() - DAY) } },
-      select: { title: true },
+      select: { title: true, titleMsg: true },
       orderBy: { createdAt: 'desc' },
       take: 10,
     }),
@@ -120,6 +125,6 @@ async function summarize(
     awaitingSignature,
     toRevise,
     endingSoon: endingSoon.map((c) => ({ ...c, endDate: c.endDate! })),
-    notifications: [...new Set(notifications.map((n) => n.title))],
+    notifications: [...new Set(notifications.map((n) => (isMsg(n.titleMsg) ? render(n.titleMsg, localeOf(u)) : n.title)))],
   };
 }

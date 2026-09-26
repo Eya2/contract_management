@@ -1,3 +1,4 @@
+import { msg, render, type Msg, type Param } from '../../lib/i18n.js';
 import type { ApprovalStepStatus, ApproverScope, ContractType, Role } from '../../generated/prisma/enums.js';
 import { ConditionSchema, evaluateCondition, type ConditionFacts } from './workflow-conditions.js';
 
@@ -68,6 +69,7 @@ export interface PlannedStep {
   approverDepartmentId: string | null;
   status: ApprovalStepStatus;
   skipReason: string | null;
+  skipReasonMsg: Msg | null;
   slaHours: number | null;
   activatedAt: Date | null;
   dueAt: Date | null;
@@ -97,6 +99,7 @@ export function materializeSteps(
         approverDepartmentId: s.approverScope === 'CONTRACT_DEPARTMENT' ? contractDepartmentId : null,
         status: skipped ? 'SKIPPED' : 'WAITING',
         skipReason: skipped ? result.reason : null,
+        skipReasonMsg: skipped ? result.reasonMsg : null,
         slaHours: s.escalateAfterHours,
         activatedAt: null,
         dueAt: null,
@@ -204,18 +207,20 @@ export function routeStep(
   step: { name: string; approverRole: Role },
   eligible: Person[],
   requesterIds: string[],
-  fallbacks: (Person & { label: string })[],
-): { assigneeId: string; routingNote: string } | null {
+  fallbacks: (Person & { label: Param })[],
+): { assigneeId: string; routingNote: string; routingNoteMsg: Msg } | null {
   const others = eligible.filter((p) => !requesterIds.includes(p.id));
   if (others.length > 0) return null;
 
   const target = fallbacks.find((p) => !requesterIds.includes(p.id));
   if (!target) throw new NoEligibleApproverError(step.name);
-  const why =
+  const note = msg(
     eligible.length > 0
-      ? `the only eligible ${roleName(step.approverRole)} is the requester`
-      : `there is no active ${roleName(step.approverRole)} who can approve it`;
-  return { assigneeId: target.id, routingNote: `Routed to ${target.name} (${target.label}) because ${why}.` };
+      ? 'Routed to {name} ({label}) because the only eligible {role} is the requester.'
+      : 'Routed to {name} ({label}) because there is no active {role} who can approve it.',
+    { name: target.name, label: target.label, role: ROLE_TEXT[step.approverRole] },
+  );
+  return { assigneeId: target.id, routingNote: render(note, 'en'), routingNoteMsg: note };
 }
 
 export class NoEligibleApproverError extends Error {
@@ -224,9 +229,13 @@ export class NoEligibleApproverError extends Error {
   }
 }
 
-function roleName(role: Role): string {
-  return role.charAt(0) + role.slice(1).toLowerCase();
-}
+const ROLE_TEXT: Record<Role, Msg> = {
+  ADMIN: msg('Admin'),
+  LEGAL: msg('Legal'),
+  FINANCE: msg('Finance'),
+  MANAGER: msg('Manager'),
+  EMPLOYEE: msg('Employee'),
+};
 
 // -----------------------------------------------------------------------------
 //  Escalation

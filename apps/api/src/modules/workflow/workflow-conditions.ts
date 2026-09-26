@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ContractType } from '../../generated/prisma/enums.js';
+import { fixed, joinMsgs, msg, render, type Msg, type Param } from '../../lib/i18n.js';
 
 /**
  * The condition language for workflow steps, stored as JSON on
@@ -96,28 +97,30 @@ export interface ConditionResult {
   applies: boolean;
   /** Human-readable explanation, e.g. "value 8,000.00 USD is not > 10,000". */
   reason: string;
+  /** The same explanation as a translatable message. */
+  reasonMsg: Msg;
 }
 
 export function evaluateCondition(condition: Condition, facts: ConditionFacts): ConditionResult {
   const { truth, reason } = evaluate(condition, facts);
-  if (truth === 'unknown') return { applies: true, reason: `${reason}, so the step is required` };
-  return { applies: truth, reason };
+  const reasonMsg = truth === 'unknown' ? msg('{reason}, so the step is required', { reason }) : reason;
+  return { applies: truth !== false, reason: render(reasonMsg, 'en'), reasonMsg };
 }
 
-function evaluate(c: Condition, facts: ConditionFacts): { truth: Truth; reason: string } {
+function evaluate(c: Condition, facts: ConditionFacts): { truth: Truth; reason: Msg } {
   if ('all' in c) {
     const parts = c.all.map((x) => evaluate(x, facts));
     const failed = parts.find((p) => p.truth === false);
     if (failed) return failed;
     const unknown = parts.find((p) => p.truth === 'unknown');
-    return unknown ?? { truth: true, reason: parts.map((p) => p.reason).join(' and ') };
+    return unknown ?? { truth: true, reason: joinMsgs(parts.map((p) => p.reason), 'and') };
   }
   if ('any' in c) {
     const parts = c.any.map((x) => evaluate(x, facts));
     const passed = parts.find((p) => p.truth === true);
     if (passed) return passed;
     const unknown = parts.find((p) => p.truth === 'unknown');
-    return unknown ?? { truth: false, reason: parts.map((p) => p.reason).join(' and ') };
+    return unknown ?? { truth: false, reason: joinMsgs(parts.map((p) => p.reason), 'and') };
   }
   if ('not' in c) {
     const inner = evaluate(c.not, facts);
@@ -126,9 +129,9 @@ function evaluate(c: Condition, facts: ConditionFacts): { truth: Truth; reason: 
   return evaluateLeaf(c, facts);
 }
 
-function evaluateLeaf(c: LeafCondition, facts: ConditionFacts): { truth: Truth; reason: string } {
+function evaluateLeaf(c: LeafCondition, facts: ConditionFacts): { truth: Truth; reason: Msg } {
   const actual = facts[c.field as Field];
-  if (actual === null) return { truth: 'unknown', reason: `${c.field} is not set` };
+  if (actual === null) return { truth: 'unknown', reason: msg('{field} is not set', { field: FIELD_TEXT[c.field] }) };
 
   const expected = c.value;
   let truth: boolean;
@@ -141,39 +144,51 @@ function evaluateLeaf(c: LeafCondition, facts: ConditionFacts): { truth: Truth; 
     case 'neq': truth = actual !== expected; break;
     case 'in': truth = (expected as unknown[]).includes(actual); break;
   }
-  const shown = c.field === 'value' ? `${formatNumber(actual as number, 2)} ${facts.currency}` : format(actual);
-  return { truth, reason: `${c.field} ${shown} ${truth ? 'is' : 'is not'} ${OP_TEXT[c.op]} ${format(expected)}` };
+  const shown = c.field === 'value' ? msg('{amount} {currency}', { amount: fixed(actual as number), currency: facts.currency }) : valueParam(actual);
+  const params = { field: FIELD_TEXT[c.field], actual: shown, op: OP_TEXT[c.op], expected: valueParam(expected) };
+  return { truth, reason: msg(truth ? '{field} {actual} is {op} {expected}' : '{field} {actual} is not {op} {expected}', params) };
 }
 
-const OP_TEXT: Record<LeafCondition['op'], string> = {
+const FIELD_TEXT: Record<Field, Msg> = {
+  value: msg('value'),
+  durationDays: msg('durationDays'),
+  currency: msg('currency'),
+  type: msg('type'),
+  autoRenew: msg('autoRenew'),
+};
+
+const OP_TEXT: Record<LeafCondition['op'], Param> = {
   gt: '>',
   gte: '≥',
   lt: '<',
   lte: '≤',
   eq: '=',
   neq: '≠',
-  in: 'one of',
+  in: msg('one of'),
 };
 
-function format(v: unknown): string {
-  if (Array.isArray(v)) return v.map(format).join(', ');
-  return typeof v === 'number' ? formatNumber(v) : String(v);
-}
-
-function formatNumber(n: number, decimals?: number): string {
-  return n.toLocaleString('en-US', decimals === undefined ? undefined : { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+/** A compared value as a message param: numbers and booleans follow the reader's language. */
+function valueParam(v: unknown): Param {
+  if (Array.isArray(v)) {
+    const p = Object.fromEntries(v.map((x, i) => [`v${i}`, valueParam(x)]));
+    return msg(v.map((_, i) => `{v${i}}`).join(', '), p);
+  }
+  if (typeof v === 'number') return v;
+  if (typeof v === 'boolean') return msg(v ? 'yes' : 'no');
+  if (typeof v === 'string' && (Object.values(ContractType) as string[]).includes(v)) return msg(`enum.${v}`);
+  return String(v);
 }
 
 /** Short description of a condition for policy screens, e.g. "value > 10,000". */
-export function describeCondition(c: Condition): string {
-  if ('all' in c) return c.all.map(wrap).join(' AND ');
-  if ('any' in c) return c.any.map(wrap).join(' OR ');
-  if ('not' in c) return `NOT ${wrap(c.not)}`;
-  return `${c.field} ${OP_TEXT[c.op]} ${format(c.value)}`;
+export function describeCondition(c: Condition): Msg {
+  if ('all' in c) return c.all.map(wrap).reduce((a, b) => msg('{a} AND {b}', { a, b }));
+  if ('any' in c) return c.any.map(wrap).reduce((a, b) => msg('{a} OR {b}', { a, b }));
+  if ('not' in c) return msg('NOT {a}', { a: wrap(c.not) });
+  return msg('{field} {op} {expected}', { field: FIELD_TEXT[c.field], op: OP_TEXT[c.op], expected: valueParam(c.value) });
 }
 
-function wrap(c: Condition): string {
-  return 'field' in c ? describeCondition(c) : `(${describeCondition(c)})`;
+function wrap(c: Condition): Msg {
+  return 'field' in c ? describeCondition(c) : msg('({a})', { a: describeCondition(c) });
 }
 
 /** The facts for a contract. Duration is counted in whole days. */

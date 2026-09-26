@@ -1,3 +1,4 @@
+import { localeOf, msg, render } from '../../lib/i18n.js';
 import { randomBytes } from 'node:crypto';
 import type { AuthUser } from '../../common/auth/auth-user.js';
 import { getRequestContext } from '../../common/context/request-context.js';
@@ -44,12 +45,16 @@ export const accountService = {
           type: 'email.send',
           payload: {
             to: user.email,
-            subject: 'Reset your Contract Hub password',
-            text:
-              `Hello ${user.firstName},\n\nSomeone (hopefully you) asked to reset your Contract Hub password. ` +
-              `The link below is valid for one hour and can be used once.\n\n` +
-              `If you didn't ask for this, ignore this email: your password stays the same.`,
+            subject: render(msg('Reset your Contract Hub password'), localeOf(user)),
+            text: render(
+              msg(
+                'Hello {name},\n\nSomeone (hopefully you) asked to reset your Contract Hub password. The link below is valid for one hour and can be used once.\n\nIf you didn’t ask for this, ignore this email: your password stays the same.',
+                { name: user.firstName },
+              ),
+              localeOf(user),
+            ),
             link: `/reset-password?token=${token}`,
+            locale: localeOf(user),
           },
         },
       });

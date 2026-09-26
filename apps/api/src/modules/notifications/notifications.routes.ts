@@ -21,6 +21,8 @@ const select = {
   type: true,
   title: true,
   body: true,
+  titleMsg: true,
+  bodyMsg: true,
   link: true,
   contractId: true,
   readAt: true,

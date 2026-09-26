@@ -1,5 +1,5 @@
 import { Component, inject, input, output, resource } from '@angular/core';
-import { TPipe, t } from '../../core/i18n';
+import { TPipe, lang, t } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -126,12 +126,12 @@ export class ApprovalsPanel {
   readonly changed = output<void>();
 
   protected readonly requests = resource({
-    params: () => ({ id: this.contractId(), status: this.status(), r: this.revision() }),
+    params: () => ({ id: this.contractId(), status: this.status(), r: this.revision(), lang: lang() }),
     loader: ({ params }) => this.api.approvals(params.id),
   });
   protected readonly preview = resource({
-    params: () => (this.status() === 'DRAFT' ? this.contractId() : undefined),
-    loader: ({ params }) => this.api.approvalPreview(params),
+    params: () => (this.status() === 'DRAFT' ? { id: this.contractId(), lang: lang() } : undefined),
+    loader: ({ params }) => this.api.approvalPreview(params.id),
   });
   protected readonly fullName = fullName;
   protected readonly dateTime = dateTime;

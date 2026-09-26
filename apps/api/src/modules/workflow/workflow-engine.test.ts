@@ -139,7 +139,7 @@ describe('routeStep (segregation of duties)', () => {
   });
 
   it('routes away from a requester who is the only eligible approver', () => {
-    expect(routeStep(step, [sarah], ['sarah'], [{ ...sarah, label: 'head of Sales' }, admin])).toEqual({
+    expect(routeStep(step, [sarah], ['sarah'], [{ ...sarah, label: 'head of Sales' }, admin])).toMatchObject({
       assigneeId: 'alex',
       routingNote: 'Routed to Alex Morgan (admin) because the only eligible Manager is the requester.',
     });

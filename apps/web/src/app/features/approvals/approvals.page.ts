@@ -1,5 +1,5 @@
 import { Component, inject, resource } from '@angular/core';
-import { TPipe, t } from '../../core/i18n';
+import { TPipe, lang, t } from '../../core/i18n';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -73,7 +73,7 @@ export class ApprovalsPage {
   private readonly dialog = inject(MatDialog);
   private readonly toast = inject(Toast);
   private readonly counts = inject(CountsService);
-  protected readonly queue = resource({ loader: () => this.api.pendingApprovals() });
+  protected readonly queue = resource({ params: () => ({ lang: lang() }), loader: () => this.api.pendingApprovals() });
 
   constructor() {
     inject(LiveService).onContractChange(() => this.queue.reload());

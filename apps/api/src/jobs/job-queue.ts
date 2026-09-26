@@ -1,3 +1,4 @@
+import { msg, render } from '../lib/i18n.js';
 import { hostname } from 'node:os';
 import { z } from 'zod';
 import { env } from '../config/env.js';
@@ -26,6 +27,8 @@ const EmailPayload = z.object({
   text: z.string(),
   /** Front-end route, turned into an absolute URL here. */
   link: z.string().nullable().optional(),
+  /** Recipient's language, for the text this worker adds. */
+  locale: z.enum(['en', 'fr']).optional(),
 });
 
 type Handler = (payload: unknown) => Promise<void>;
@@ -33,7 +36,8 @@ type Handler = (payload: unknown) => Promise<void>;
 const handlers: Record<string, Handler> = {
   'email.send': async (payload) => {
     const email = EmailPayload.parse(payload);
-    const text = email.link ? `${email.text}\n\nOpen in Contract Hub: ${env.APP_URL}${email.link}` : email.text;
+    const footer = msg('Open in Contract Hub: {url}', { url: `${env.APP_URL}${email.link}` });
+    const text = email.link ? `${email.text}\n\n${render(footer, email.locale ?? 'en')}` : email.text;
     await sendEmail({ to: email.to, subject: email.subject, text });
   },
 };

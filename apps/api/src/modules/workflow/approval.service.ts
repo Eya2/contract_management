@@ -1,3 +1,4 @@
+import { asJson, msg, type Msg } from '../../lib/i18n.js';
 import type { AuthUser } from '../../common/auth/auth-user.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../common/errors/app-error.js';
 import type { Contract, Prisma } from '../../generated/prisma/client.js';
@@ -45,7 +46,9 @@ const stepSelect = {
   assignee: userSummary,
   status: true,
   routingNote: true,
+  routingNoteMsg: true,
   skipReason: true,
+  skipReasonMsg: true,
   slaHours: true,
   activatedAt: true,
   dueAt: true,
@@ -90,9 +93,11 @@ export const approvalService = {
           name: p.name,
           approverRole: p.approverRole,
           approverDepartmentId: p.approverDepartmentId,
-          condition: source.condition ? describeCondition(ConditionSchema.parse(source.condition)) : null,
+          condition: null,
+          conditionMsg: source.condition ? describeCondition(ConditionSchema.parse(source.condition)) : null,
           willRun: p.status !== 'SKIPPED',
           skipReason: p.skipReason,
+          skipReasonMsg: p.skipReasonMsg,
           slaHours: p.slaHours,
         };
       }),
@@ -139,7 +144,7 @@ export const approvalService = {
         },
       });
       for (const p of planned) {
-        let route: { assigneeId: string; routingNote: string } | null = null;
+        let route: ReturnType<typeof routeStep> = null;
         if (p.status !== 'SKIPPED') {
           try {
             route = routeStep(p, await eligibleApprovers(tx, p), requesterIds, await fallbackApprovers(tx, p));
@@ -159,9 +164,11 @@ export const approvalService = {
           approverDepartmentId: p.approverDepartmentId,
           status: p.status,
           skipReason: p.skipReason,
+          skipReasonMsg: asJson(p.skipReasonMsg),
           slaHours: p.slaHours,
           assigneeId: route?.assigneeId ?? null,
           routingNote: route?.routingNote ?? null,
+          routingNoteMsg: asJson(route?.routingNoteMsg),
         });
       }
       const steps = rows.length
@@ -200,13 +207,13 @@ export const approvalService = {
           from: 'SUBMITTED',
           to: 'APPROVED',
           actorId: null,
-          reason: 'No approval step applies to this contract',
+          reason: msg('No approval step applies to this contract'),
         });
         await recordAudit(
           { action: 'CONTRACT_APPROVED', entityType: 'approval_request', entityId: request.id, contractId, metadata: { automatic: true } },
           tx,
         );
-        await notifyOwner(tx, contract, 'CONTRACT_APPROVED', 'is approved', 'No approval step applied, so it was approved automatically.');
+        await notifyOwner(tx, contract, 'CONTRACT_APPROVED', msg('{ref} {title} is approved', ref(contract)), msg('No approval step applied, so it was approved automatically.'));
       }
     });
     return this.listForContract(user, contractId);
@@ -293,7 +300,7 @@ export const approvalService = {
             { action: 'CONTRACT_REJECTED', entityType: 'approval_request', entityId: request.id, contractId, metadata: { step: step.name } },
             tx,
           );
-          await notifyOwner(tx, contract, 'CONTRACT_REJECTED', 'was rejected', `${who} rejected it at "${step.name}": ${comment!.trim()}`, request.submittedById);
+          await notifyOwner(tx, contract, 'CONTRACT_REJECTED', msg('{ref} {title} was rejected', ref(contract)), msg('{who} rejected it at "{step}": {comment}', { who, step: step.name, comment: comment!.trim() }), request.submittedById);
           break;
         }
         case 'APPROVED': {
@@ -301,20 +308,20 @@ export const approvalService = {
             where: { id: request.id },
             data: { status: 'APPROVED', completedAt: now, currentStage: null },
           });
-          await transitionContract(tx, { contractId, from: contract.status, to: 'APPROVED', actorId: user.id, reason: `Final approval: ${step.name}` });
+          await transitionContract(tx, { contractId, from: contract.status, to: 'APPROVED', actorId: user.id, reason: msg('Final approval: {step}', { step: step.name }) });
           await recordAudit(
             { action: 'CONTRACT_APPROVED', entityType: 'approval_request', entityId: request.id, contractId },
             tx,
           );
-          await notifyOwner(tx, contract, 'CONTRACT_APPROVED', 'is approved', `All approvals are in (last: ${who}, "${step.name}").`, request.submittedById);
+          await notifyOwner(tx, contract, 'CONTRACT_APPROVED', msg('{ref} {title} is approved', ref(contract)), msg('All approvals are in (last: {who}, "{step}").', { who, step: step.name }), request.submittedById);
           break;
         }
         case 'NEXT_STAGE':
         case 'STAGE_IN_PROGRESS': {
           if (contract.status === 'SUBMITTED') {
-            await transitionContract(tx, { contractId, from: 'SUBMITTED', to: 'UNDER_REVIEW', actorId: user.id, reason: `First approval: ${step.name}` });
+            await transitionContract(tx, { contractId, from: 'SUBMITTED', to: 'UNDER_REVIEW', actorId: user.id, reason: msg('First approval: {step}', { step: step.name }) });
           }
-          await notifyOwner(tx, contract, 'APPROVAL_GRANTED', 'passed a review step', `${who} approved "${step.name}".`, request.submittedById);
+          await notifyOwner(tx, contract, 'APPROVAL_GRANTED', msg('{ref} {title} passed a review step', ref(contract)), msg('{who} approved "{step}".', { who, step: step.name }), request.submittedById);
           if (outcome.kind === 'NEXT_STAGE') {
             await activate(tx, outcome.activations);
             await tx.approvalRequest.update({ where: { id: request.id }, data: { currentStage: outcome.stage } });
@@ -343,7 +350,7 @@ export const approvalService = {
         where: { id: request.id },
         data: { status: 'WITHDRAWN', completedAt: new Date(), currentStage: null },
       });
-      await transitionContract(tx, { contractId, from: contract.status, to: 'DRAFT', actorId: user.id, reason: reason ?? 'Withdrawn from review' });
+      await transitionContract(tx, { contractId, from: contract.status, to: 'DRAFT', actorId: user.id, reason: reason ?? msg('Withdrawn from review') });
       await recordAudit(
         { action: 'CONTRACT_WITHDRAWN', entityType: 'approval_request', entityId: request.id, contractId, metadata: { reason: reason ?? null } },
         tx,
@@ -481,21 +488,21 @@ async function eligibleApprovers(
 async function fallbackApprovers(
   tx: DbClient,
   step: { approverDepartmentId: string | null },
-): Promise<(Person & { label: string })[]> {
-  const result: (Person & { label: string })[] = [];
+): Promise<(Person & { label: Msg })[]> {
+  const result: (Person & { label: Msg })[] = [];
   if (step.approverDepartmentId) {
     const dept = await tx.department.findUnique({
       where: { id: step.approverDepartmentId },
       select: { name: true, head: { select: { id: true, firstName: true, lastName: true, isActive: true } } },
     });
-    if (dept?.head?.isActive) result.push({ id: dept.head.id, name: personName(dept.head), label: `head of ${dept.name}` });
+    if (dept?.head?.isActive) result.push({ id: dept.head.id, name: personName(dept.head), label: msg('head of {department}', { department: dept.name }) });
   }
   const admins = await tx.user.findMany({
     where: { role: 'ADMIN', isActive: true },
     select: { id: true, firstName: true, lastName: true },
     orderBy: { createdAt: 'asc' },
   });
-  result.push(...admins.map((a) => ({ id: a.id, name: personName(a), label: 'admin' })));
+  result.push(...admins.map((a) => ({ id: a.id, name: personName(a), label: msg('admin') })));
   return result;
 }
 
@@ -511,8 +518,10 @@ async function notifyApprovers(tx: DbClient, contract: Contract, activations: Ac
       : (await eligibleApprovers(tx, step)).map((p) => p.id).filter((id) => !requesterIds.includes(id));
     await notify(tx, recipients, {
       type: 'APPROVAL_REQUESTED',
-      title: `Approval needed: ${contract.referenceNumber} ${contract.title}`,
-      body: `"${step.name}" is waiting for your decision${step.dueAt ? ` (due ${step.dueAt.toISOString().slice(0, 16).replace('T', ' ')} UTC)` : ''}.`,
+      title: msg('Approval needed: {ref} {title}', ref(contract)),
+      body: step.dueAt
+        ? msg('"{step}" is waiting for your decision (due {due} UTC).', { step: step.name, due: step.dueAt.toISOString().slice(0, 16).replace('T', ' ') })
+        : msg('"{step}" is waiting for your decision.', { step: step.name }),
       contractId: contract.id,
       link: contractLink(contract.id, 'approvals'),
       dedupeKey: `approval-requested:${step.id}`,
@@ -524,14 +533,13 @@ async function notifyOwner(
   tx: DbClient,
   contract: Contract,
   type: 'CONTRACT_APPROVED' | 'CONTRACT_REJECTED' | 'APPROVAL_GRANTED',
-  /** Completes the title "<ref> <title> …", e.g. "was rejected". */
-  outcome: string,
-  body: string,
+  title: Msg,
+  body: Msg,
   submitterId?: string,
 ) {
   await notify(tx, [contract.ownerId, ...(submitterId ? [submitterId] : [])], {
     type,
-    title: `${contract.referenceNumber} ${contract.title} ${outcome}`,
+    title,
     body,
     contractId: contract.id,
     link: contractLink(contract.id, 'approvals'),
@@ -541,4 +549,9 @@ async function notifyOwner(
 async function actorName(tx: DbClient, userId: string): Promise<string> {
   const u = await tx.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } });
   return u ? personName(u) : 'Someone';
+}
+
+/** The contract's reference and title, as message params. */
+function ref(contract: { referenceNumber: string; title: string }) {
+  return { ref: contract.referenceNumber, title: contract.title };
 }

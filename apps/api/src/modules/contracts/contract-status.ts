@@ -1,3 +1,4 @@
+import { asJson, render, type Msg } from '../../lib/i18n.js';
 import { canTransition } from '@cms/shared';
 import { ConflictError } from '../../common/errors/app-error.js';
 import type { ContractStatus } from '../../generated/prisma/enums.js';
@@ -19,7 +20,8 @@ export async function transitionContract(
     to: ContractStatus;
     /** Null for system changes (scheduler). */
     actorId: string | null;
-    reason?: string;
+    /** Free text from a person, or a message the system writes (shown in the reader's language). */
+    reason?: string | Msg;
     data?: { activatedAt?: Date; terminatedAt?: Date; terminationReason?: string };
   },
 ): Promise<void> {
@@ -33,6 +35,13 @@ export async function transitionContract(
   });
   if (count !== 1) throw new ConflictError('The contract status changed in the meantime, please reload');
   await tx.contractStatusChange.create({
-    data: { contractId, fromStatus: from, toStatus: to, actorId: params.actorId, reason: params.reason },
+    data: {
+      contractId,
+      fromStatus: from,
+      toStatus: to,
+      actorId: params.actorId,
+      reason: params.reason === undefined ? undefined : render(params.reason, 'en'),
+      reasonMsg: typeof params.reason === 'object' ? asJson(params.reason) : undefined,
+    },
   });
 }

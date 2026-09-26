@@ -123,9 +123,12 @@ export const authService = {
   },
 
   async me(userId: string) {
-    const user = await userRepository.findById(userId);
+    const [user, prefs] = await Promise.all([
+      userRepository.findById(userId),
+      prisma.user.findUnique({ where: { id: userId }, select: { locale: true } }),
+    ]);
     if (!user || !user.isActive) throw new UnauthorizedError();
-    return { ...user, permissions: permissionsFor(user.role) };
+    return { ...user, locale: prefs?.locale ?? 'en', permissions: permissionsFor(user.role) };
   },
 };
 

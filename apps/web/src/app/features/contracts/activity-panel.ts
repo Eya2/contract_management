@@ -1,5 +1,5 @@
 import { Component, inject, input, resource } from '@angular/core';
-import { TPipe } from '../../core/i18n';
+import { TPipe, lang } from '../../core/i18n';
 import { AuthService } from '../../core/auth.service';
 import { Api } from '../../core/api.service';
 import { dateTime, fullName, humanize } from '../../shared/format';
@@ -57,7 +57,7 @@ export class ActivityPanel {
   readonly revision = input(0);
   protected readonly canAudit = inject(AuthService).can('audit.read');
   protected readonly timeline = resource({
-    params: () => ({ id: this.contractId(), r: this.revision() }),
+    params: () => ({ id: this.contractId(), r: this.revision(), lang: lang() }),
     loader: ({ params }) => this.api.timeline(params.id),
   });
   protected readonly audit = resource({

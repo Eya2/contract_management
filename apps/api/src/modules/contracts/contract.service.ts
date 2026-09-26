@@ -1,3 +1,4 @@
+import { msg } from '../../lib/i18n.js';
 import { EDITABLE_STATUSES, TERMINAL_STATUSES } from '@cms/shared';
 import type { AuthUser } from '../../common/auth/auth-user.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../common/errors/app-error.js';
@@ -239,8 +240,8 @@ export const contractService = {
       if (contract.ownerId !== user.id) {
         await notify(tx, [contract.ownerId], {
           type: 'CONTRACT_EXPIRING',
-          title: `${contract.referenceNumber} ${contract.title} was terminated`,
-          body: `Reason: ${reason}`,
+          title: msg('{ref} {title} was terminated', { ref: contract.referenceNumber, title: contract.title }),
+          body: msg('Reason: {reason}', { reason }),
           contractId: id,
           link: contractLink(id),
         });

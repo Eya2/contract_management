@@ -17,6 +17,8 @@ export interface UserSummary {
 
 export interface Profile extends UserSummary {
   role: Role;
+  /** Language the server writes emails in; kept in step with the app's switch. */
+  locale?: 'en' | 'fr';
   department: { id: string; name: string; code: string };
   permissions: string[];
 }

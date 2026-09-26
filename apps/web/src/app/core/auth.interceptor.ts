@@ -2,6 +2,7 @@ import { HttpErrorResponse, type HttpInterceptorFn } from '@angular/common/http'
 import { inject } from '@angular/core';
 import { catchError, from, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
+import { lang } from './i18n';
 
 /** Endpoints that must not carry the bearer token or trigger a refresh. */
 const PUBLIC = [/^\/api\/auth\/(login|refresh|logout|forgot-password|reset-password)(\/|$)/, /^\/api\/signing\//];
@@ -13,7 +14,10 @@ const PUBLIC = [/^\/api\/auth\/(login|refresh|logout|forgot-password|reset-passw
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
-  if (!req.url.startsWith('/api/') || PUBLIC.some((p) => p.test(req.url))) return next(req);
+  if (!req.url.startsWith('/api/')) return next(req);
+  // Text the server writes (notifications, skip reasons…) comes back in the app's language.
+  req = req.clone({ setHeaders: { 'Accept-Language': lang() } });
+  if (PUBLIC.some((p) => p.test(req.url))) return next(req);
 
   const withToken = () => {
     const token = auth.accessToken();

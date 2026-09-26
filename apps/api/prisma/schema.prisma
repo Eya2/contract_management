@@ -177,30 +177,32 @@ model Department {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  firstName    String    @map("first_name")
-  lastName     String    @map("last_name")
+  id                String    @id @default(uuid()) @db.Uuid
+  email             String    @unique
+  passwordHash      String    @map("password_hash")
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
   /// One role per user keeps RBAC easy to reason about; permissions per role live in code.
-  role         Role      @default(EMPLOYEE)
-  departmentId String    @map("department_id") @db.Uuid
+  role              Role      @default(EMPLOYEE)
+  departmentId      String    @map("department_id") @db.Uuid
   /// Users are deactivated, never deleted: audit logs and approvals must keep resolving.
-  isActive     Boolean   @default(true) @map("is_active")
-  lastLoginAt  DateTime? @map("last_login_at")
+  isActive          Boolean   @default(true) @map("is_active")
+  lastLoginAt       DateTime? @map("last_login_at")
   /// Channels per notification type, e.g. { "CONTRACT_SIGNED": { "email": false } }.
   /// A missing entry means the channel is on.
-  notificationPrefs Json     @default("{}") @map("notification_prefs")
+  notificationPrefs Json      @default("{}") @map("notification_prefs")
+  /// Language for emails and other text the server writes to this user.
+  locale            String    @default("en") @db.VarChar(5)
   /// Wants a daily summary email of pending work and the day's notifications.
-  dailyDigest       Boolean  @default(false) @map("daily_digest")
+  dailyDigest       Boolean   @default(false) @map("daily_digest")
   /// UTC day the last summary was handled (sent, or skipped because empty).
   lastDigestOn      DateTime? @map("last_digest_on") @db.Date
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  department    Department     @relation("DepartmentMembers", fields: [departmentId], references: [id])
-  headOf        Department?    @relation("DepartmentHead")
-  refreshTokens RefreshToken[]
+  department     Department           @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  headOf         Department?          @relation("DepartmentHead")
+  refreshTokens  RefreshToken[]
   passwordResets PasswordResetToken[]
 
   ownedContracts      Contract[]             @relation("ContractOwner")
@@ -471,6 +473,8 @@ model ContractStatusChange {
   /// Null when the system made the change (scheduler: activation, expiry).
   actorId    String?         @map("actor_id") @db.Uuid
   reason     String?
+  /// Set for reasons the system writes, so they can be shown in the reader's language.
+  reasonMsg  Json?           @map("reason_msg")
   createdAt  DateTime        @default(now()) @map("created_at")
 
   contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
@@ -578,8 +582,10 @@ model ApprovalStep {
   /// Why the step was routed away from its template approver, e.g. the only
   /// eligible manager is the requester (who may not approve their own contract).
   routingNote          String?            @map("routing_note")
+  routingNoteMsg       Json?              @map("routing_note_msg")
   /// Why a step was SKIPPED, e.g. "value 8,000.00 USD is not > 10,000".
   skipReason           String?            @map("skip_reason")
+  skipReasonMsg        Json?              @map("skip_reason_msg")
   /// Frozen copy of the template's escalateAfterHours: later policy edits don't
   /// change the SLA of a request already in flight.
   slaHours             Int?               @map("sla_hours")
@@ -708,6 +714,9 @@ model Notification {
   type       NotificationType
   title      String
   body       String
+  /// The same text as a translatable message ({ t, p }), rendered in the reader's language.
+  titleMsg   Json?            @map("title_msg")
+  bodyMsg    Json?            @map("body_msg")
   /// Front-end route to open, e.g. /contracts/<id>?tab=approvals
   link       String?
   contractId String?          @map("contract_id") @db.Uuid

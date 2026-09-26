@@ -1,3 +1,4 @@
+import { msg } from '../../lib/i18n.js';
 import { logger } from '../../lib/logger.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../../lib/prisma.js';
@@ -111,8 +112,8 @@ async function escalateStep(step: OverdueStep, now: Date): Promise<boolean> {
     );
     await notify(tx, targets, {
       type: 'APPROVAL_ESCALATED',
-      title: `Overdue approval: ${contract.referenceNumber} ${contract.title}`,
-      body: `"${step.name}" has been waiting past its deadline and was escalated to you. You can decide it directly.`,
+      title: msg('Overdue approval: {ref} {title}', { ref: contract.referenceNumber, title: contract.title }),
+      body: msg('"{step}" has been waiting past its deadline and was escalated to you. You can decide it directly.', { step: step.name }),
       contractId: contract.id,
       link: contractLink(contract.id, 'approvals'),
       dedupeKey: `escalation:${step.id}:${plan.level}`,

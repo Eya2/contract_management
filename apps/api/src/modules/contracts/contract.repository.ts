@@ -169,7 +169,7 @@ export const contractRepository = {
   timeline(contractId: string) {
     return prisma.contractStatusChange.findMany({
       where: { contractId },
-      select: { id: true, fromStatus: true, toStatus: true, reason: true, createdAt: true, actor: userSummary },
+      select: { id: true, fromStatus: true, toStatus: true, reason: true, reasonMsg: true, createdAt: true, actor: userSummary },
       orderBy: { createdAt: 'asc' },
     });
   },
