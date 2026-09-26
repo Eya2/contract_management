@@ -1,0 +1,38 @@
+# Serves the Angular app and forwards /api to the API, so the browser sees a
+# single origin (the refresh cookie and SameSite=Strict work unchanged).
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+
+  # Uploads are limited by the API (20 MB); let them through the proxy.
+  client_max_body_size 25m;
+
+  gzip on;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+
+  location /api/ {
+    proxy_pass ${API_UPSTREAM};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 60s;
+  }
+
+  # Hashed bundles never change: cache them for a year.
+  location ~* \.(?:js|css|woff2?|ttf|svg|png|ico)$ {
+    try_files $uri =404;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+
+  # Everything else is an app route: serve index.html, never cached.
+  location / {
+    try_files $uri $uri/ /index.html;
+    add_header Cache-Control "no-cache";
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+  }
+}

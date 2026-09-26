@@ -1,0 +1,14 @@
+# Keep the build context small and never ship local secrets or data.
+**/node_modules
+**/dist
+**/.angular
+**/coverage
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example
+apps/api/storage
+apps/api/src/generated
+docs/screenshots
+.git
+.DS_Store

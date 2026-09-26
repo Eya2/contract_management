@@ -1,5 +1,7 @@
 # Contract Hub
 
+[![CI](https://github.com/Eya2/contract_management/actions/workflows/ci.yml/badge.svg)](https://github.com/Eya2/contract_management/actions/workflows/ci.yml)
+
 **Agreements, approved. Signed. Renewed. On time.**
 
 Contract Hub is a full-stack contract lifecycle management platform. Teams draft
@@ -27,6 +29,7 @@ tamper-proof audit trail.
 - [Features](#features)
 - [Screenshots](#screenshots)
 - [Quick start](#quick-start)
+- [Run everything with Docker](#run-everything-with-docker)
 - [Demo walkthrough](#demo-walkthrough)
 - [Email delivery (Mailpit or Gmail)](#email-delivery)
 - [Tech stack and architecture](#tech-stack-and-architecture)
@@ -85,7 +88,7 @@ tamper-proof audit trail.
 ### Accounts and experience
 
 - **Keep me signed in** (a 30-day session) or a browser session. **Forgot password** with a single-use, one-hour email link. **Change password** signs out every other device.
-- **Light, dark and system themes**, a responsive layout (works on phones), subtle animations that respect *reduced motion*, and loading skeletons and empty states throughout.
+- **English and French**, switchable instantly (dates and amounts follow the language). **Light, dark and system themes**, a responsive layout (works on phones), subtle animations that respect *reduced motion*, and loading skeletons and empty states throughout.
 
 ---
 
@@ -119,6 +122,31 @@ npm run dev:web                          # app on http://localhost:4200
 ```
 
 With a local PostgreSQL instead of Docker, start only the mail catcher: `docker compose up -d mailpit`.
+
+## Run everything with Docker
+
+The whole app (database, API, web app and mail catcher) runs with Docker
+Compose. No Node.js needed.
+
+```bash
+echo "JWT_ACCESS_SECRET=$(openssl rand -base64 48)" > .env   # once; .env is git-ignored
+docker compose --profile app up -d --build                   # http://localhost:8080
+docker compose --profile app run --rm seed                   # load the demo data (once)
+```
+
+- The app is on http://localhost:8080 and emails land in Mailpit at http://localhost:8025.
+- If port 5432 is already taken (e.g. a local PostgreSQL), add `POSTGRES_PORT=55432` to `.env`.
+- The API container applies database migrations on every start. Uploaded files live in the `storage` volume.
+- For real email, add the SMTP settings from [Email delivery](#email-delivery) to `.env`.
+- Stop with `docker compose --profile app down` (add `-v` to also delete the data).
+
+The images are built by CI and published on every push to `main`:
+`ghcr.io/eya2/contract_management-api` and `ghcr.io/eya2/contract_management-web`.
+
+| Image | Contents |
+| ----- | -------- |
+| `apps/api/Dockerfile` | Multi-stage Node 24 build, production dependencies only, runs as a non-root user, health check, migrations on start |
+| `apps/web/Dockerfile` | Angular production build served by nginx, which also forwards `/api` to the API (one origin: cookies work unchanged) |
 
 ### Demo accounts
 
@@ -269,6 +297,11 @@ npm run typecheck                         # type-check every workspace
 npm run screenshots                       # regenerate docs/screenshots (app running, Chrome installed)
 ```
 
+**Continuous integration** (`.github/workflows/ci.yml`) runs on every push and
+pull request. It typechecks and tests the API against a real PostgreSQL
+database, tests and builds the web app (the build fails if the bundle budget is
+exceeded), and builds both Docker images, publishing them from `main`.
+
 The API has 176 tests. Unit tests cover the workflow engine,
 conditions, content hashing and diffs, renewal date arithmetic and permissions.
 Integration tests run against a real PostgreSQL database (`TEST_DATABASE_URL`)
@@ -318,5 +351,5 @@ scripts/            screenshot generator
 - [x] Angular UI: login, dashboard, contract detail, approvals, e-signature
 - [x] Renewals, administration screens, contract PDFs, redesign with dark mode
 - [x] Seed data and demo walkthrough
-- [ ] French interface (contract PDFs are already bilingual)
-- [ ] Docker images and CI
+- [x] French interface (switch EN / FR in the sidebar; PDFs in both languages)
+- [x] Docker images and CI

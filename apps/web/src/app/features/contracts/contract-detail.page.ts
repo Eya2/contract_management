@@ -33,7 +33,7 @@ const MILESTONES = [
   { label: 'Approved', statuses: ['APPROVED'] },
   { label: 'Signed', statuses: ['SIGNED'] },
   { label: 'In force', statuses: ['ACTIVE'] },
-  { label: 'Ended', statuses: ['EXPIRED', 'RENEWED', 'TERMINATED'] },
+  { label: 'Finished', statuses: ['EXPIRED', 'RENEWED', 'TERMINATED'] },
 ];
 
 @Component({

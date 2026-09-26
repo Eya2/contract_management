@@ -13,6 +13,7 @@ import { Avatar } from '../shared/avatar';
 import { humanize } from '../shared/format';
 import { Logo } from '../shared/logo';
 import { NotificationBell } from './notification-bell';
+import { LangSwitch } from './lang-switch';
 import { ThemeSwitch } from './theme-switch';
 
 interface NavItem {
@@ -38,6 +39,7 @@ interface NavItem {
     MatTooltipModule,
     NotificationBell,
     ThemeSwitch,
+    LangSwitch,
     Logo,
     Avatar,
   ],
@@ -88,7 +90,7 @@ interface NavItem {
         </nav>
 
         <div class="space-y-3 border-t border-line p-4">
-          <cms-theme-switch />
+          <div class="grid grid-cols-[1fr_5.5rem] gap-2"><cms-theme-switch /><cms-lang-switch /></div>
           <button [matMenuTriggerFor]="userMenu" class="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-subtle">
             <cms-avatar [name]="name()" [size]="36" />
             <span class="min-w-0 flex-1 leading-tight">

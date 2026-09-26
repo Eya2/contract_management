@@ -19,7 +19,7 @@ import { SignaturePad } from '../../shared/signature-pad';
   imports: [TPipe, FormsModule, MatButtonModule, MatButtonToggleModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, SignaturePad],
   template: `
     <mat-button-toggle-group class="mb-4" [value]="method()" (change)="method.set($event.value)" [attr.aria-label]="'Signature method' | t">
-      <mat-button-toggle value="TYPED">{{ 'Type' | t }}</mat-button-toggle>
+      <mat-button-toggle value="TYPED">{{ 'Type it' | t }}</mat-button-toggle>
       <mat-button-toggle value="DRAWN">{{ 'Draw' | t }}</mat-button-toggle>
     </mat-button-toggle-group>
 

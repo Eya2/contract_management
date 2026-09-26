@@ -9,6 +9,7 @@ import { Api } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { errorMessage } from '../../core/errors';
 import { Toast } from '../../core/toast.service';
+import { LangSwitch } from '../../layout/lang-switch';
 import { ThemeSwitch } from '../../layout/theme-switch';
 import { Avatar } from '../../shared/avatar';
 import { humanize } from '../../shared/format';
@@ -16,7 +17,7 @@ import { PageHeader } from '../../shared/page-header';
 import { PasswordRules, passwordOk } from '../../shared/password-rules';
 
 @Component({
-  imports: [TPipe, FormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, PageHeader, Avatar, PasswordRules, ThemeSwitch],
+  imports: [TPipe, FormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, PageHeader, Avatar, PasswordRules, ThemeSwitch, LangSwitch],
   template: `
     <cms-page-header [title]="'Account settings' | t" [subtitle]="'Your profile, password and preferences.' | t" />
 
@@ -71,7 +72,7 @@ import { PasswordRules, passwordOk } from '../../shared/password-rules';
           <h2 class="font-semibold">{{ 'Appearance' | t }}</h2>
           <p class="mt-1 text-sm text-muted">{{ 'Saved on this device.' | t }}</p>
         </div>
-        <div class="max-w-xs"><cms-theme-switch /></div>
+        <div class="flex max-w-sm flex-col gap-3"><div><p class="mb-1 text-xs text-muted">{{ 'Theme' | t }}</p><cms-theme-switch /></div><div class="max-w-40"><p class="mb-1 text-xs text-muted">{{ 'Language' | t }}</p><cms-lang-switch /></div></div>
       </section>
     </div>
   `,

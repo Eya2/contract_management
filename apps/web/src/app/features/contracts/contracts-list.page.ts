@@ -4,7 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatPaginatorModule, type PageEvent } from '@angular/material/paginator';
+import { MatPaginatorIntl, MatPaginatorModule, type PageEvent } from '@angular/material/paginator';
+import { TranslatedPaginatorIntl } from '../../shared/paginator-intl';
 import { Router, RouterLink } from '@angular/router';
 import { ContractType } from '@cms/shared';
 import { Api } from '../../core/api.service';
@@ -30,6 +31,7 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
 
 /** Filters live in the URL (?q=&status=&type=&sort=&order=&page=), so every view is linkable. */
 @Component({
+  providers: [{ provide: MatPaginatorIntl, useClass: TranslatedPaginatorIntl }],
   imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatPaginatorModule, StatusBadge, PageHeader, Avatar, Skeleton, EmptyState],
   template: `
     <cms-page-header [title]="'Contracts' | t" [subtitle]="'{n} contracts you can see' | t: { n: list.value()?.total ?? '…' }">

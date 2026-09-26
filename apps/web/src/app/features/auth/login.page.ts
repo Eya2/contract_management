@@ -10,6 +10,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { errorMessage } from '../../core/errors';
+import { LangSwitch } from '../../layout/lang-switch';
 import { ThemeSwitch } from '../../layout/theme-switch';
 import { Avatar } from '../../shared/avatar';
 import { Logo } from '../../shared/logo';
@@ -24,7 +25,7 @@ const DEMO = [
 ];
 
 @Component({
-  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, Logo, Avatar, ThemeSwitch],
+  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, Logo, Avatar, ThemeSwitch, LangSwitch],
   styles: `
     .sig {
       stroke-dasharray: 260;
@@ -97,7 +98,7 @@ const DEMO = [
       <section class="flex flex-col px-6 py-8 sm:px-12">
         <div class="flex items-center justify-between">
           <cms-logo class="lg:invisible" />
-          <div class="w-36"><cms-theme-switch /></div>
+          <div class="flex gap-2"><div class="w-24"><cms-lang-switch /></div><div class="w-36"><cms-theme-switch /></div></div>
         </div>
         <div class="mx-auto my-auto w-full max-w-sm animate-rise py-10">
           <h1 class="text-3xl font-semibold">{{ 'Welcome back' | t }}</h1>

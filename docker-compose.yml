@@ -1,4 +1,12 @@
-# Local infrastructure for development.
+# Local infrastructure, and optionally the whole app.
+#
+#   docker compose up -d postgres mailpit        infrastructure only (npm run db:up)
+#   docker compose --profile app up -d --build   + API and web app on http://localhost:8080
+#   docker compose --profile app run --rm seed   load the demo data (once)
+#
+# The app profile needs JWT_ACCESS_SECRET, e.g. in a `.env` file next to this one:
+#   echo "JWT_ACCESS_SECRET=$(openssl rand -base64 48)" > .env
+#
 #   postgres – primary database
 #   mailpit  – SMTP catcher: every email the app sends shows up at http://localhost:8025
 services:
@@ -9,7 +17,7 @@ services:
       POSTGRES_PASSWORD: cms
       POSTGRES_DB: contract_mgmt_dev
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432" # set POSTGRES_PORT if 5432 is taken
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
@@ -24,5 +32,55 @@ services:
       - "1025:1025" # SMTP
       - "8025:8025" # Web UI
 
+  api:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: contract-hub-api
+    environment: &api-env
+      DATABASE_URL: postgresql://cms:cms@postgres:5432/contract_mgmt_dev
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET (see the top of docker-compose.yml)}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      COMPANY_NAME: ${COMPANY_NAME:-Contract Hub Inc.}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      MAIL_FROM: ${MAIL_FROM:-Contract Hub <no-reply@contracthub.local>}
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: contract-hub-web
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # One-off: `docker compose --profile app run --rm seed` loads the demo data.
+  seed:
+    profiles: [seed] # not started by `up`; run it explicitly
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: build
+    working_dir: /app/apps/api
+    command: ["npx", "tsx", "prisma/seed.ts"]
+    environment: *api-env
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:
+  storage:

@@ -8,15 +8,22 @@ import { FR } from './i18n.fr';
  * dictionary, and a missing French entry falls back to English instead of
  * showing a key. Placeholders use {name}: t('Version {n}', { n: 2 }).
  *
- * The French dictionary is not written yet, so the interface is English-only
- * for now: `initial()` always returns 'en' and there is no language switcher.
- * Adding French means filling i18n.fr.ts and restoring the switcher; every
- * template already goes through `t`. (Contract PDFs are already bilingual.)
+ * The choice is a per-browser preference in localStorage (guarded), defaulting
+ * to the browser's language. Dates, numbers and currencies follow it too, and
+ * so does the default language of contract PDFs.
  */
 export type Lang = 'en' | 'fr';
 
+const KEY = 'cms-lang';
+
 function initial(): Lang {
-  return 'en';
+  try {
+    const saved = localStorage.getItem(KEY);
+    if (saved === 'en' || saved === 'fr') return saved;
+  } catch {
+    /* storage unavailable: fall through */
+  }
+  return navigator.language?.toLowerCase().startsWith('fr') ? 'fr' : 'en';
 }
 
 export const lang = signal<Lang>(initial());
@@ -25,6 +32,11 @@ document.documentElement.lang = lang();
 export function setLang(l: Lang) {
   lang.set(l);
   document.documentElement.lang = l;
+  try {
+    localStorage.setItem(KEY, l);
+  } catch {
+    /* the choice lasts for this page only */
+  }
 }
 
 /** The BCP 47 locale for Intl formatting. */

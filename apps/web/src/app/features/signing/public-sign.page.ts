@@ -14,6 +14,7 @@ import { StatusBadge } from '../../shared/status-badge';
 import { SignForm } from './sign-form';
 import { Logo } from '../../shared/logo';
 import { PdfViewer } from '../../shared/pdf-viewer';
+import { LangSwitch } from '../../layout/lang-switch';
 
 /**
  * Where an external signer lands from their email: /sign/:token. No account;
@@ -21,12 +22,12 @@ import { PdfViewer } from '../../shared/pdf-viewer';
  * then lets them sign or decline.
  */
 @Component({
-  imports: [TPipe, MatButtonModule, MatIconModule, MatProgressSpinnerModule, StatusBadge, SignForm, Logo, PdfViewer],
+  imports: [TPipe, MatButtonModule, MatIconModule, MatProgressSpinnerModule, StatusBadge, SignForm, Logo, PdfViewer, LangSwitch],
   template: `
     <div class="min-h-screen bg-canvas">
       <header class="sticky top-0 z-10 border-b border-line bg-card/80 backdrop-blur-xl">
         <div class="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4 font-semibold text-ink">
-          <cms-logo /><span class="ml-2 flex items-center gap-1 rounded-full bg-subtle px-2.5 py-1 text-xs font-medium text-muted"><mat-icon class="!size-3.5 !text-[14px]">lock</mat-icon>{{ 'Secure signing' | t }}</span>
+          <cms-logo /><span class="ml-2 flex items-center gap-1 rounded-full bg-subtle px-2.5 py-1 text-xs font-medium text-muted"><mat-icon class="!size-3.5 !text-[14px]">lock</mat-icon>{{ 'Secure signing' | t }}</span><div class="ml-auto w-24"><cms-lang-switch /></div>
         </div>
       </header>
       <main class="mx-auto max-w-3xl px-4 py-8">
