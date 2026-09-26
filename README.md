@@ -155,20 +155,9 @@ The images are built by CI and published on every push to `main`:
 
 ### Demo accounts
 
-All demo accounts use the password **`Demo1234!`**. The sign-in page has one-click buttons for each.
-
-| Account | Role | What to try |
-| ------- | ---- | ----------- |
-| `sales@contracthub.dev` (Sami) | Employee, Sales | Draft, submit, revise, choose signers, renew |
-| `sales.manager@contracthub.dev` (Sarah) | Manager, Sales (head) | Approve Sales contracts, sign, terminate |
-| `legal@contracthub.dev` (Leila) | Legal (head) | Review every contract, read the audit log |
-| `finance@contracthub.dev` (Farah) | Finance (head) | Review contracts above 10,000 |
-| `procurement@contracthub.dev` (Nour) | Employee, Procurement | Vendor contracts |
-| `procurement.manager@contracthub.dev` (Omar) | Manager, Procurement (head) | Approve and sign Procurement contracts |
-| `admin@contracthub.dev` (Alex) | Admin | Users, policies, email delivery, audit |
-
-More people to explore other departments: `amira.sales@`, `finance2@`, `hr.manager@` / `hr@`,
-`it.manager@` / `it@`, `marketing.manager@` / `marketing@` (all `@contracthub.dev`, same password).
+The seed creates one or more people for every role and department (employee,
+manager, Legal, Finance, admin), named as in the walkthrough below. Their
+sign-in details are shared separately, not published here.
 
 ---
 
