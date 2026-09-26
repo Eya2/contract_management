@@ -627,6 +627,23 @@ export const FR: Record<string, string> = {
 
   View: 'Voir',
 
+  // --- Notification settings ------------------------------------------------------
+  'Choose how you hear about each event. Changes are saved right away.': 'Choisissez comment être prévenu de chaque événement. Les changements sont enregistrés immédiatement.',
+  'Could not load your notification settings.': 'Impossible de charger vos préférences de notification.',
+  Event: 'Événement',
+  'In the app': 'Dans l’application',
+  'A contract needs my approval': 'Un contrat attend mon approbation',
+  'An overdue approval is escalated to me': 'Une approbation en retard m’est escaladée',
+  'A step of my contract is approved': 'Une étape de mon contrat est approuvée',
+  'My contract is fully approved': 'Mon contrat est entièrement approuvé',
+  'My contract is rejected': 'Mon contrat est rejeté',
+  'A contract is waiting for my signature': 'Un contrat attend ma signature',
+  'A contract is signed': 'Un contrat est signé',
+  'Renewal reminders and end of term': 'Rappels de renouvellement et fin de contrat',
+  'Daily summary email': 'E-mail récapitulatif quotidien',
+  'Every morning: approvals and signatures waiting for you, contracts ending this week and the day’s notifications. Not sent when there is nothing to report.': 'Chaque matin : les approbations et signatures qui vous attendent, les contrats qui se terminent cette semaine et les notifications de la veille. Rien n’est envoyé s’il n’y a rien à signaler.',
+  'Notification settings saved': 'Préférences de notification enregistrées',
+
   // --- Renewals calendar --------------------------------------------------------
   'End dates and renewals of the contracts you can see, month by month.': 'Échéances et renouvellements des contrats que vous pouvez voir, mois par mois.',
   'Previous month': 'Mois précédent',

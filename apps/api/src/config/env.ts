@@ -32,6 +32,8 @@ const EnvSchema = z.object({
 
   /** How often the escalation scheduler looks for overdue approval steps. 0 disables it. */
   ESCALATION_SCAN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(60_000),
+  /** UTC hour from which the daily summary emails go out. */
+  DIGEST_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(7),
   /** How often the job worker polls for queued jobs (emails). 0 disables it. */
   JOB_POLL_INTERVAL_MS: z.coerce.number().int().nonnegative().default(5_000),
 

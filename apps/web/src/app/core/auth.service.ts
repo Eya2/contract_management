@@ -1,8 +1,11 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import type { Profile } from './models';
+
+/** Attempts (1 s, 2 s, 3 s … apart) while the server can't be reached. */
+const UNREACHABLE_RETRIES = 5;
 
 interface Session {
   accessToken: string;
@@ -50,9 +53,13 @@ export class AuthService {
     if (await this.refresh()) await this.loadProfile().catch(() => this.clear());
   }
 
-  /** Rotates the refresh cookie and gets a new access token. Returns false if the session is over. */
+  /**
+   * Rotates the refresh cookie and gets a new access token. Returns false if the
+   * session is over. While the server is unreachable (restarting, a deploy), it
+   * retries for a few seconds instead of signing the user out.
+   */
   refresh(): Promise<boolean> {
-    this.refreshing ??= firstValueFrom(this.http.post<Session>('/api/auth/refresh', {}))
+    this.refreshing ??= this.postRefresh()
       .then((s) => {
         this.token.set(s.accessToken);
         return true;
@@ -63,6 +70,18 @@ export class AuthService {
       })
       .finally(() => (this.refreshing = null));
     return this.refreshing;
+  }
+
+  private async postRefresh(): Promise<Session> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await firstValueFrom(this.http.post<Session>('/api/auth/refresh', {}));
+      } catch (err) {
+        const unreachable = err instanceof HttpErrorResponse && [0, 502, 503, 504].includes(err.status);
+        if (!unreachable || attempt >= UNREACHABLE_RETRIES) throw err;
+        await new Promise((r) => setTimeout(r, attempt * 1000));
+      }
+    }
   }
 
   async logout(): Promise<void> {

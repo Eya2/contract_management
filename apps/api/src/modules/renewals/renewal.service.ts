@@ -47,9 +47,11 @@ export const renewalService = {
       if (threshold === null) continue;
       try {
         const created = await prisma.$transaction(async (tx) => {
-          const before = await tx.notification.count({ where: { dedupeKey: { startsWith: `expiry:${c.id}:${threshold}d:` } } });
-          if (before > 0) return false;
-          await notify(tx, [c.ownerId, ...(c.department.headId ? [c.department.headId] : [])], {
+          // Sent already, in-app or by email (a user may have switched either channel off).
+          const key = { dedupeKey: { startsWith: `expiry:${c.id}:${threshold}d:` } };
+          const [inApp, emails] = await Promise.all([tx.notification.count({ where: key }), tx.job.count({ where: key })]);
+          if (inApp + emails > 0) return false;
+          const reached = await notify(tx, [c.ownerId, ...(c.department.headId ? [c.department.headId] : [])], {
             type: 'CONTRACT_EXPIRING',
             title: `${c.referenceNumber} ${c.title} ${daysLeft === 0 ? 'ends today' : daysLeft === 1 ? 'ends tomorrow' : `ends in ${daysLeft} days`}`,
             body: c.autoRenew
@@ -61,7 +63,7 @@ export const renewalService = {
             link: contractLink(c.id),
             dedupeKey: `expiry:${c.id}:${threshold}d`,
           });
-          return true;
+          return reached > 0;
         });
         if (created) result.reminded++;
       } catch (err) {

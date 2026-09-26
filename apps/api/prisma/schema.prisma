@@ -188,6 +188,13 @@ model User {
   /// Users are deactivated, never deleted: audit logs and approvals must keep resolving.
   isActive     Boolean   @default(true) @map("is_active")
   lastLoginAt  DateTime? @map("last_login_at")
+  /// Channels per notification type, e.g. { "CONTRACT_SIGNED": { "email": false } }.
+  /// A missing entry means the channel is on.
+  notificationPrefs Json     @default("{}") @map("notification_prefs")
+  /// Wants a daily summary email of pending work and the day's notifications.
+  dailyDigest       Boolean  @default(false) @map("daily_digest")
+  /// UTC day the last summary was handled (sent, or skipped because empty).
+  lastDigestOn      DateTime? @map("last_digest_on") @db.Date
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 

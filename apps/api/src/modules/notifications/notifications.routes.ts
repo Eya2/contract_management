@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authenticate, currentUser } from '../../common/middleware/authenticate.js';
 import { NotFoundError } from '../../common/errors/app-error.js';
 import { prisma } from '../../lib/prisma.js';
+import { compactPrefs, resolvePrefs, UpdatePrefsBody } from './preferences.js';
 
 /** The in-app bell. Users only ever see and change their own notifications. */
 export const notificationsRouter = Router();
@@ -46,6 +47,22 @@ notificationsRouter.get('/', async (req, res) => {
     prisma.notification.count({ where: { userId: user.id, readAt: null } }),
   ]);
   res.json({ items, unreadCount });
+});
+
+/** Channels per notification type, and the daily summary email. */
+notificationsRouter.get('/preferences', async (req, res) => {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: currentUser(req).id }, select: { notificationPrefs: true, dailyDigest: true } });
+  res.json({ prefs: resolvePrefs(user.notificationPrefs), dailyDigest: user.dailyDigest });
+});
+
+notificationsRouter.put('/preferences', async (req, res) => {
+  const body = UpdatePrefsBody.parse(req.body);
+  const user = await prisma.user.update({
+    where: { id: currentUser(req).id },
+    data: { notificationPrefs: compactPrefs(body.prefs), dailyDigest: body.dailyDigest },
+    select: { notificationPrefs: true, dailyDigest: true },
+  });
+  res.json({ prefs: resolvePrefs(user.notificationPrefs), dailyDigest: user.dailyDigest });
 });
 
 notificationsRouter.get('/unread-count', async (req, res) => {

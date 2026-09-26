@@ -279,6 +279,11 @@ export interface Dashboard {
   expiryWindowDays: number;
 }
 
+export interface NotificationPrefs {
+  prefs: Record<string, { email: boolean; inApp: boolean }>;
+  dailyDigest: boolean;
+}
+
 export type RenewalRisk = 'overdue' | 'decision' | 'in-progress' | 'auto' | 'covered';
 
 export interface RenewalEntry extends ContractSummary {

@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
   Profile,
+  NotificationPrefs,
   RenewalEntry,
   AdminUser,
   DepartmentOverview,
@@ -112,6 +113,8 @@ export class Api {
   publicSign = (token: string, body: SignaturePayload) => this.post<PublicSigningView>(`/api/signing/${token}/sign`, body);
   publicDecline = (token: string, reason: string) => this.post<PublicSigningView>(`/api/signing/${token}/decline`, { reason });
 
+  notificationPrefs = () => this.get<NotificationPrefs>('/api/notifications/preferences');
+  saveNotificationPrefs = (body: NotificationPrefs) => firstValueFrom(this.http.put<NotificationPrefs>('/api/notifications/preferences', body));
   renewalCalendar = (from: string, to: string) => this.get<RenewalEntry[]>('/api/renewals/calendar', { from, to });
   terminate = (id: string, reason: string) => this.post<ContractDetail>(`/api/contracts/${id}/terminate`, { reason });
   exportContracts = (q: ContractQuery) => {
