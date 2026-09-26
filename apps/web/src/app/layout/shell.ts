@@ -155,6 +155,7 @@ export class Shell {
     const workspace: NavItem[] = [
       { path: '/', label: 'Dashboard', icon: 'space_dashboard', exact: true },
       { path: '/contracts', label: 'Contracts', icon: 'description' },
+      { path: '/renewals', label: 'Renewals', icon: 'event_repeat' },
     ];
     if (this.auth.can('approval.decide')) {
       workspace.push({ path: '/approvals', label: 'Approvals', icon: 'fact_check', badge: () => this.counts.pendingApprovals() });

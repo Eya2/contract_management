@@ -21,6 +21,7 @@ export const routes: Routes = [
       { path: 'contracts/new', title: 'New contract · Contract Hub', canActivate: [permissionGuard('contract.create')], loadComponent: () => import('./features/contracts/contract-form.page').then((m) => m.ContractFormPage) },
       { path: 'contracts/:id', title: 'Contract · Contract Hub', loadComponent: () => import('./features/contracts/contract-detail.page').then((m) => m.ContractDetailPage) },
       { path: 'contracts/:id/edit', title: 'Edit contract · Contract Hub', canActivate: [permissionGuard('contract.update')], loadComponent: () => import('./features/contracts/contract-form.page').then((m) => m.ContractFormPage) },
+      { path: 'renewals', title: 'Renewals · Contract Hub', loadComponent: () => import('./features/renewals/renewals.page').then((m) => m.RenewalsPage) },
       { path: 'approvals', title: 'Approvals · Contract Hub', canActivate: [permissionGuard('approval.decide')], loadComponent: () => import('./features/approvals/approvals.page').then((m) => m.ApprovalsPage) },
       { path: 'notifications', title: 'Notifications · Contract Hub', loadComponent: () => import('./features/notifications/notifications.page').then((m) => m.NotificationsPage) },
       { path: 'settings', title: 'Account settings · Contract Hub', loadComponent: () => import('./features/account/settings.page').then((m) => m.SettingsPage) },

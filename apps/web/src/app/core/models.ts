@@ -279,6 +279,13 @@ export interface Dashboard {
   expiryWindowDays: number;
 }
 
+export type RenewalRisk = 'overdue' | 'decision' | 'in-progress' | 'auto' | 'covered';
+
+export interface RenewalEntry extends ContractSummary {
+  risk: RenewalRisk;
+  renewedBy: { id: string; referenceNumber: string; status: ContractStatus } | null;
+}
+
 /** The API's error envelope. */
 export interface ApiError {
   error: { code: string; message: string; details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };

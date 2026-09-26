@@ -17,7 +17,7 @@ import { departmentsRouter } from './modules/departments/departments.routes.js';
 import { contractPdfRouter, signerPdfRouter } from './modules/documents/documents.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { notificationsRouter } from './modules/notifications/notifications.routes.js';
-import { contractRenewalRouter } from './modules/renewals/renewals.routes.js';
+import { contractRenewalRouter, renewalsRouter } from './modules/renewals/renewals.routes.js';
 import { contractSigningRouter, publicSigningRouter, signersRouter } from './modules/signing/signing.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import {
@@ -60,6 +60,7 @@ export function createApp() {
   app.use('/api/workflow-templates', workflowTemplatesRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/renewals', renewalsRouter);
   app.use('/api/audit', auditRouter);
   app.use('/api/admin/emails', jobsRouter);
   app.use('/api/signers', signersRouter);

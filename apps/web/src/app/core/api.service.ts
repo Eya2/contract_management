@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
   Profile,
+  RenewalEntry,
   AdminUser,
   DepartmentOverview,
   EmailStatus,
@@ -111,6 +112,7 @@ export class Api {
   publicSign = (token: string, body: SignaturePayload) => this.post<PublicSigningView>(`/api/signing/${token}/sign`, body);
   publicDecline = (token: string, reason: string) => this.post<PublicSigningView>(`/api/signing/${token}/decline`, { reason });
 
+  renewalCalendar = (from: string, to: string) => this.get<RenewalEntry[]>('/api/renewals/calendar', { from, to });
   terminate = (id: string, reason: string) => this.post<ContractDetail>(`/api/contracts/${id}/terminate`, { reason });
   exportContracts = (q: ContractQuery) => {
     const params = new URLSearchParams();
