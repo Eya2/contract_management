@@ -92,8 +92,9 @@
   --line-soft: #eef0f6;
   --ink: #0e1630;
   --body: #333c55;
-  --muted: #667089;
-  --faint: #98a0b5;
+  /* Text greys meet WCAG AA (4.5:1) on every surface, including subtle-strong. */
+  --muted: #525a6f;
+  --faint: #5f6984;
   --accent: var(--color-brand-600);
   --accent-soft: var(--color-brand-50);
   --accent-ink: var(--color-brand-700);
@@ -111,8 +112,8 @@
   --line-soft: #1a2139;
   --ink: #eef1fb;
   --body: #c7cde0;
-  --muted: #8d96b3;
-  --faint: #5f6884;
+  --muted: #9da5be;
+  --faint: #838ba6;
   --accent: var(--color-brand-400);
   --accent-soft: color-mix(in oklab, var(--color-brand-500) 16%, transparent);
   --accent-ink: var(--color-brand-300);
@@ -231,4 +232,10 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Rows and days reached with the arrow keys (see KeyNav). */
+[data-nav-item]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }

@@ -658,6 +658,11 @@ export const FR: Record<string, string> = {
   Month: 'Mois',
   '{n} h': '{n} h',
 
+  // --- Keyboard navigation -----------------------------------------------------------
+  'Use the arrow keys to move between rows and Enter to open one.': 'Utilisez les flèches pour passer d’une ligne à l’autre et Entrée pour l’ouvrir.',
+  'Use the arrow keys to move between people and Enter to edit one.': 'Utilisez les flèches pour passer d’une personne à l’autre et Entrée pour la modifier.',
+  'Use the arrow keys to move between days and Enter to list what ends that day.': 'Utilisez les flèches pour passer d’un jour à l’autre et Entrée pour voir les échéances du jour.',
+
   // --- Renewals calendar --------------------------------------------------------
   'End dates and renewals of the contracts you can see, month by month.': 'Échéances et renouvellements des contrats que vous pouvez voir, mois par mois.',
   'Previous month': 'Mois précédent',

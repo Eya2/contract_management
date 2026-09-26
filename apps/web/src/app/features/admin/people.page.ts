@@ -14,6 +14,7 @@ import type { AdminUser, DepartmentOverview } from '../../core/models';
 import { Toast } from '../../core/toast.service';
 import { Avatar } from '../../shared/avatar';
 import { EmptyState } from '../../shared/empty-state';
+import { KeyNav } from '../../shared/key-nav';
 import { ago, humanize } from '../../shared/format';
 import { PageHeader } from '../../shared/page-header';
 import { Skeleton } from '../../shared/skeleton';
@@ -29,7 +30,7 @@ const ROLE_TONE: Record<string, string> = {
 };
 
 @Component({
-  imports: [TPipe, FormsModule, MatButtonModule, MatIconModule, MatMenuModule, MatSelectModule, MatTabsModule, PageHeader, Avatar, Skeleton, EmptyState],
+  imports: [KeyNav, TPipe, FormsModule, MatButtonModule, MatIconModule, MatMenuModule, MatSelectModule, MatTabsModule, PageHeader, Avatar, Skeleton, EmptyState],
   template: `
     <cms-page-header [eyebrow]="'Administration' | t" [title]="'People & teams' | t" [subtitle]="'Who can sign in, what they can do, and who leads each department.' | t">
       <button mat-stroked-button (click)="newDepartment()"><mat-icon>add_business</mat-icon>{{ 'New department' | t }}</button>
@@ -54,13 +55,14 @@ const ROLE_TONE: Record<string, string> = {
             <cms-skeleton [rows]="6" />
           } @else {
             <div class="overflow-x-auto">
-              <table class="w-full text-left text-sm">
+              <p id="people-keys" class="sr-only">{{ 'Use the arrow keys to move between people and Enter to edit one.' | t }}</p>
+              <table class="w-full text-left text-sm" aria-describedby="people-keys">
                 <thead class="border-b border-line bg-subtle/60 text-xs text-muted">
                   <tr><th class="py-3 pr-4 pl-5 font-medium">{{ 'Person' | t }}</th><th class="px-4 font-medium">{{ 'Role' | t }}</th><th class="px-4 font-medium">{{ 'Department' | t }}</th><th class="px-4 font-medium">{{ 'Last sign-in' | t }}</th><th class="px-4 font-medium">{{ 'Status' | t }}</th><th></th></tr>
                 </thead>
-                <tbody class="divide-y divide-line-soft">
+                <tbody class="divide-y divide-line-soft" cmsKeyNav>
                   @for (u of filtered(); track u.id; let i = $index) {
-                    <tr class="stagger transition-colors hover:bg-subtle/60" [style.--i]="i" [class.opacity-60]="!u.isActive">
+                    <tr class="stagger transition-colors hover:bg-subtle/60" [style.--i]="i" [class.opacity-60]="!u.isActive" data-nav-item>
                       <td class="py-3 pr-4 pl-5">
                         <div class="flex items-center gap-3">
                           <cms-avatar [name]="u.firstName + ' ' + u.lastName" [size]="34" />
@@ -83,7 +85,7 @@ const ROLE_TONE: Record<string, string> = {
                           <span class="size-1.5 rounded-full bg-current"></span>{{ (u.isActive ? 'Active' : 'Inactive') | t }}
                         </span>
                       </td>
-                      <td class="pr-3 text-right"><button mat-icon-button (click)="edit(u)" [attr.aria-label]="('Edit' | t) + ' ' + u.firstName"><mat-icon>edit</mat-icon></button></td>
+                      <td class="pr-3 text-right"><button mat-icon-button (click)="edit(u)" [attr.aria-label]="('Edit' | t) + ' ' + u.firstName" data-nav-action><mat-icon>edit</mat-icon></button></td>
                     </tr>
                   } @empty {
                     <tr><td colspan="6"><cms-empty icon="person_search" [title]="'Nobody matches' | t" [text]="'Try another name or role.' | t" /></td></tr>

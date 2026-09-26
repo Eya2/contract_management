@@ -8,6 +8,7 @@ import { LiveService } from '../../core/live.service';
 import { TPipe, lang, locale, t } from '../../core/i18n';
 import type { RenewalEntry, RenewalRisk } from '../../core/models';
 import { EmptyState } from '../../shared/empty-state';
+import { KeyNav } from '../../shared/key-nav';
 import { date, daysUntil, fullName, money } from '../../shared/format';
 import { PageHeader } from '../../shared/page-header';
 import { Skeleton } from '../../shared/skeleton';
@@ -79,7 +80,7 @@ const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
  * Dates are UTC calendar days, like the contract dates themselves.
  */
 @Component({
-  imports: [TPipe, RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, PageHeader, Skeleton, EmptyState, StatusBadge],
+  imports: [KeyNav, TPipe, RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, PageHeader, Skeleton, EmptyState, StatusBadge],
   template: `
     <cms-page-header [title]="'Renewals' | t" [subtitle]="'End dates and renewals of the contracts you can see, month by month.' | t">
       <div class="flex items-center gap-1 rounded-xl bg-card p-1 ring-1 ring-line">
@@ -121,15 +122,17 @@ const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
               <div class="py-2">{{ w }}</div>
             }
           </div>
-          <div class="grid grid-cols-7" role="grid" [attr.aria-busy]="entries.isLoading()">
+          <p id="calendar-keys" class="sr-only">{{ 'Use the arrow keys to move between days and Enter to list what ends that day.' | t }}</p>
+          <div class="grid grid-cols-7" [attr.aria-busy]="entries.isLoading()" cmsKeyNav="7" aria-describedby="calendar-keys">
             @for (cell of cells(); track cell.iso) {
               <button
                 type="button"
-                role="gridcell"
+                data-nav-item
+                [attr.data-nav-default]="cell.iso === (day() ?? todayIso) || null"
                 class="group relative flex min-h-16 flex-col gap-1 border-r border-b border-line-soft p-1.5 text-left transition-colors outline-none nth-[7n]:border-r-0 hover:bg-subtle/70 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-[var(--accent)] sm:min-h-28 sm:p-2"
                 [class.bg-subtle]="!cell.inMonth"
                 [class.!bg-accent-soft]="cell.iso === day()"
-                [attr.aria-selected]="cell.iso === day()"
+                [attr.aria-pressed]="cell.iso === day()"
                 [attr.aria-label]="cellLabel(cell)"
                 (click)="selectDay(cell.iso)"
               >
@@ -220,7 +223,7 @@ export class RenewalsPage {
   protected readonly money = money;
   protected readonly fullName = fullName;
 
-  private readonly todayIso = isoDay(Date.now());
+  protected readonly todayIso = isoDay(Date.now());
 
   /** First day of the shown month (UTC ms). */
   private readonly monthStart = computed(() => {

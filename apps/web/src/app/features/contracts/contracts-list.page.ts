@@ -13,6 +13,7 @@ import { LiveService } from '../../core/live.service';
 import { AuthService } from '../../core/auth.service';
 import { Avatar } from '../../shared/avatar';
 import { EmptyState } from '../../shared/empty-state';
+import { KeyNav } from '../../shared/key-nav';
 import { date, fullName, humanize, money } from '../../shared/format';
 import { PageHeader } from '../../shared/page-header';
 import { Skeleton } from '../../shared/skeleton';
@@ -33,7 +34,7 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
 /** Filters live in the URL (?q=&status=&type=&sort=&order=&page=), so every view is linkable. */
 @Component({
   providers: [{ provide: MatPaginatorIntl, useClass: TranslatedPaginatorIntl }],
-  imports: [TPipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatPaginatorModule, StatusBadge, PageHeader, Avatar, Skeleton, EmptyState],
+  imports: [KeyNav, TPipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatPaginatorModule, StatusBadge, PageHeader, Avatar, Skeleton, EmptyState],
   template: `
     <cms-page-header [title]="'Contracts' | t" [subtitle]="'{n} contracts you can see' | t: { n: list.value()?.total ?? '…' }">
       <button mat-stroked-button (click)="exportCsv()" [disabled]="!list.value()?.total"><mat-icon>download</mat-icon>{{ 'Export CSV' | t }}</button>
@@ -94,7 +95,8 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
       } @else {
         <!-- Table on larger screens -->
         <div class="hidden overflow-x-auto md:block">
-          <table class="w-full text-left text-sm">
+          <p id="contracts-keys" class="sr-only">{{ 'Use the arrow keys to move between rows and Enter to open one.' | t }}</p>
+          <table class="w-full text-left text-sm" aria-describedby="contracts-keys">
             <thead class="border-b border-line bg-subtle/60 text-xs font-medium text-muted">
               <tr>
                 @for (col of columns; track col.key) {
@@ -111,16 +113,16 @@ export const TYPE_ICON: Record<string, string> = { VENDOR: 'storefront', CLIENT:
                 }
               </tr>
             </thead>
-            <tbody class="divide-y divide-line-soft">
+            <tbody class="divide-y divide-line-soft" cmsKeyNav>
               @for (c of list.value()!.items; track c.id; let i = $index) {
-                <tr class="stagger group cursor-pointer transition-colors hover:bg-subtle/70" [style.--i]="i" [routerLink]="['/contracts', c.id]">
+                <tr class="stagger group cursor-pointer transition-colors hover:bg-subtle/70" [style.--i]="i" [routerLink]="['/contracts', c.id]" data-nav-item>
                   <td class="min-w-64 py-3 pr-4 pl-5">
                     <div class="flex items-center gap-3">
                       <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-subtle text-muted transition-colors group-hover:bg-accent-soft group-hover:text-accent-ink">
                         <mat-icon class="!size-5 !text-[20px]">{{ typeIcon[c.type] }}</mat-icon>
                       </span>
                       <div class="min-w-0">
-                        <a [routerLink]="['/contracts', c.id]" class="block truncate font-medium text-ink">{{ c.title }}</a>
+                        <a [routerLink]="['/contracts', c.id]" class="block truncate font-medium text-ink" tabindex="-1" data-nav-skip>{{ c.title }}</a>
                         <p class="text-xs text-muted">{{ c.referenceNumber }} · v{{ c.currentVersionNumber }} · {{ humanize(c.type) }}</p>
                       </div>
                     </div>

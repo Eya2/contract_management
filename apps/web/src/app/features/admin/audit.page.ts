@@ -8,6 +8,7 @@ import { Api } from '../../core/api.service';
 import type { AuditEntry } from '../../core/models';
 import { Avatar } from '../../shared/avatar';
 import { EmptyState } from '../../shared/empty-state';
+import { KeyNav } from '../../shared/key-nav';
 import { dateTime, fullName, humanize } from '../../shared/format';
 import { PageHeader } from '../../shared/page-header';
 import { Skeleton } from '../../shared/skeleton';
@@ -24,7 +25,7 @@ const ALERT = new Set(['AUTH_LOGIN_FAILED', 'AUTH_TOKEN_REUSE_DETECTED']);
 
 /** The append-only audit log: who did what, when, from where. */
 @Component({
-  imports: [TPipe, RouterLink, MatButtonModule, MatIconModule, MatSelectModule, PageHeader, Avatar, Skeleton, EmptyState],
+  imports: [KeyNav, TPipe, RouterLink, MatButtonModule, MatIconModule, MatSelectModule, PageHeader, Avatar, Skeleton, EmptyState],
   template: `
     <cms-page-header [eyebrow]="'Administration' | t" [title]="'Audit log' | t" [subtitle]="'Append-only: entries can’t be edited or deleted, not even by an admin.' | t">
       <mat-select class="!w-64" [value]="action()" (selectionChange)="action.set($event.value); load()" [placeholder]="'All events' | t" [attr.aria-label]="'Filter by event' | t">
@@ -43,10 +44,10 @@ const ALERT = new Set(['AUTH_LOGIN_FAILED', 'AUTH_TOKEN_REUSE_DETECTED']);
       @if (loading() && !items().length) {
         <cms-skeleton [rows]="8" />
       }
-      <ul class="divide-y divide-line-soft">
+      <ul class="divide-y divide-line-soft" cmsKeyNav [attr.aria-label]="'Audit log' | t">
         @for (e of items(); track e.id; let i = $index) {
           <li class="stagger" [style.--i]="i % 20">
-            <button class="flex w-full items-start gap-4 px-5 py-3 text-left transition-colors hover:bg-subtle/60" (click)="toggle(e.id)" [attr.aria-expanded]="open() === e.id">
+            <button class="flex w-full items-start gap-4 px-5 py-3 text-left transition-colors hover:bg-subtle/60" (click)="toggle(e.id)" [attr.aria-expanded]="open() === e.id" data-nav-item>
               <cms-avatar [name]="fullName(e.user)" [size]="30" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm">
