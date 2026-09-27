@@ -357,18 +357,3 @@ scripts/            screenshot generator
 ```
 
 ---
-
-## Roadmap
-
-- [x] Monorepo, database schema, migrations with DB-level guarantees
-- [x] Auth (JWT + refresh-token rotation with reuse detection) and RBAC
-- [x] Contracts CRUD with version history and file storage
-- [x] Approval workflow engine (state machine, conditional steps, escalation)
-- [x] Notifications (email job queue + in-app bell) and audit logging
-- [x] Angular UI: login, dashboard, contract detail, approvals, e-signature
-- [x] Renewals, administration screens, contract PDFs, redesign with dark mode
-- [x] Seed data and demo walkthrough
-- [x] French interface (switch EN / FR in the sidebar; PDFs in both languages)
-- [x] Docker images and CI
-- [x] Renewals calendar, live updates, notification settings with a daily summary, dashboard charts
-- [x] Server messages in French, keyboard navigation and contrast pass
