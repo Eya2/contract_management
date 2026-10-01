@@ -14,3 +14,6 @@ apps/api/src/generated/
 
 # Local list of accounts and passwords (never commit)
 comptes-utilisateurs.xlsx
+
+# Generated demo video and its post text (npm run demo-video)
+docs/demo/
